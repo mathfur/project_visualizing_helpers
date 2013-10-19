@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 module ProjectVisualizingHelpers
-  class MySQLLog2CSV
+  class MySQLLog2CSV < Base
     def initialize(*args)
       case args[0]
       when String
@@ -69,13 +69,8 @@ module ProjectVisualizingHelpers
       end
     end
 
-    def result(*columns)
-      headers = %w{num time command argument}
-      indexes = columns.map{|col| headers.index(col.to_s) }
-
-      raise ArgumentError, columns if indexes.include?(nil)
-
-      @output.map{|line| indexes.map{|i| line[i] } }
+    def headers
+      %w{num time command argument}
     end
   end
 end
