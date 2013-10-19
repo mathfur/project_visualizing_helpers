@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 module ProjectVisualizingHelpers
-  class Railroad2CSV
+  class Railroad2CSV < Base
     def initialize(input)
       @lines = input.split(/\n/)
 
@@ -10,15 +10,11 @@ module ProjectVisualizingHelpers
 
     attr_reader :nodes, :edges
 
-    CH_REG = /(\\"|[^"])/
-    NOT_QUOTED_REG = /"#{CH_REG}*"/
-    QUOTED_REG = /\w+/
-    PAIR_VALUE_REG = /(#{NOT_QUOTED_REG}|#{QUOTED_REG})/
-    PAIR_REG = /\w+=#{PAIR_VALUE_REG}/
-    PAIRS_REG = /\s*#{PAIR_REG}\s*(,\s*#{PAIR_REG})*\s*/
+    PAIR_REGEX = /\w+=#{STRING_REGEX}/
+    PAIRS_REGEX = /\s*#{PAIR_REGEX}\s*(,\s*#{PAIR_REGEX})*\s*/
 
-    NODE_REG = /^ *"(?<model>[^"]+)" *\[(?<pairs>#{PAIRS_REG})\] *$/
-    EDGE_REG = /^ *"(?<edge1>[^"]+)" *-> *"(?<edge2>[^"]+)" *\[(?<pairs>#{PAIRS_REG})\] *$/
+    NODE_REGEX = /^ *"(?<model>[^"]+)" *\[(?<pairs>#{PAIRS_REGEX})\] *$/
+    EDGE_REGEX = /^ *"(?<edge1>[^"]+)" *-> *"(?<edge2>[^"]+)" *\[(?<pairs>#{PAIRS_REGEX})\] *$/
 
     def parse
       @nodes = []
@@ -26,9 +22,9 @@ module ProjectVisualizingHelpers
 
       @lines.each do |line|
         case line
-        when NODE_REG
+        when NODE_REGEX
           @nodes << $~[:model]
-        when EDGE_REG
+        when EDGE_REGEX
           @edges << [$~[:edge1], $~[:edge2]]
 
           @nodes << $~[:edge1]

@@ -8,11 +8,8 @@ module ProjectVisualizingHelpers
       parse
     end
 
-    QUOTED_CHARACTER = /(\\"|[^"])/
-    INNER_QUOTE_REG = /#{QUOTED_CHARACTER}*/
-
     IP_REG = /\b\d{1,3}(\.\d{1,3}){3}\b/
-    LINE_REG = /^(?<ip>#{IP_REG}) [^ ]+ [^ ]+ \[(?<time>[^\]]+)\] "(?<query>#{INNER_QUOTE_REG}*)" (?<code>\d+) (?<bytes>\d+)$/
+    LINE_REG = /^(?<ip>#{IP_REG}) [^ ]+ [^ ]+ \[(?<time>[^\]]+)\] "(?<query>#{INNER_QUOTE_REGEX}*)" (?<code>\d+) (?<bytes>\d+)$/
 
     def parse
       @output = @lines.map{|line| line.scan(LINE_REG).first}.compact

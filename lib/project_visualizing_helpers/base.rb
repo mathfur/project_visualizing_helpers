@@ -9,5 +9,11 @@ module ProjectVisualizingHelpers
 
       @output.map{|line| indexes.map{|i| line[i] } }
     end
+
+    QUOTED_CHARACTER_REGEX = /(\\"|[^"])/
+    INNER_QUOTE_REGEX = /#{QUOTED_CHARACTER_REGEX}*/
+    QUOTED_STRING_REGEX = /"#{INNER_QUOTE_REGEX}*"/
+    NOT_QUOTED_STRING_REGEX = /\w+/
+    STRING_REGEX = /(?:#{NOT_QUOTED_STRING_REGEX}|#{QUOTED_STRING_REGEX})/
   end
 end
