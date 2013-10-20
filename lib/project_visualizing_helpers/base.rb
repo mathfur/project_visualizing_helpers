@@ -3,7 +3,11 @@
 module ProjectVisualizingHelpers
   class Base
     def result(*columns)
-      indexes = columns.map{|col| self.headers.index(col.to_s) }
+      indexes = if columns.blank?
+                  (0..self.headers.size-1).to_a
+                else
+                  columns.map{|col| self.headers.index(col.to_s) }
+                end
 
       raise ArgumentError, columns if indexes.include?(nil)
 
@@ -19,5 +23,9 @@ module ProjectVisualizingHelpers
     IP_REGEX = /(?<ip>\b\d{1,3}(\.\d{1,3}){3}\b)/
     TIME_REGEX1 = /(?<time>\b\d+-\d+-\d+ \d+:\d+:\d+\b)/
     METHOD_REGEX = /(?<method>\b(?:GET|POST|DELETE|PUT|HEAD))/
+
+    def result_by_csv(*args)
+      self.result(*args).map(&:to_csv).join
+    end
   end
 end

@@ -5,12 +5,13 @@ require 'getoptlong'
 require './lib/project_visualizing_helpers'
 
 usage = <<EOS
-Usage: mysql_log2csv [file]
+Usage: db_schema2csv [file]
+-v --version display version information and exit.
 EOS
 
 opts = GetoptLong.new(
   ['--help', '-h', GetoptLong::NO_ARGUMENT],
-  ['--version', '-v', GetoptLong::NO_ARGUMENT]
+  ['--version', '-v', GetoptLong::NO_ARGUMENT],
 )
 
 begin
@@ -18,10 +19,6 @@ begin
     case opt
     when '--help'; puts usage; exit
     when '--version'; puts Railroad2Dot::VERSION; exit
-    when '--edges'
-      output_type = :edges
-    when '--nodes'
-      output_type = :nodes
     end
   end
 rescue StandardError => e
@@ -29,6 +26,7 @@ rescue StandardError => e
   exit
 end
 
-mysql_log2csv = ProjectVisualizingHelpers::MySQLLog2CSV.new(ARGF.read)
-puts "time,argument"
-puts mysql_log2csv.result_by_csv(:time, :argument)
+db_schema2csv = ProjectVisualizingHelpers::DbSchema2CSV.new(ARGF.read)
+
+puts db_schema2csv.headers.join(",")
+puts db_schema2csv.result_by_csv
