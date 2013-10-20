@@ -2,11 +2,19 @@
 
 module ProjectVisualizingHelpers
   class Graph
-    def initialize(center, edges)
-      @center = center
-      @edges = edges.to_a
+    attr_reader :edges
 
-      unless @edges.flatten.include?(center)
+    def initialize(edges, opts={})
+      case edges
+      when Array, Hash
+        @edges = edges.to_a
+      when String
+        @edges = CSV.parse(edges).to_a
+      end
+
+      @center = opts[:center] || @edges.first.first
+
+      unless @edges.flatten.include?(@center)
         raise "@edges `#{@edges.inspect}` has to have @center `#{@center.inspect}`"
       end
     end
@@ -15,25 +23,36 @@ module ProjectVisualizingHelpers
       @tree_nodes = [@center]
 
       tree_edges = []
-      while @edges.present?
-        selected_edge = @edges.each do |edge|
-                          if (from = (@tree_nodes & edge).try(:first))
-                            to = (edge - [from]).first
-                            @tree_nodes << to
+      @edges.size.times do
+        selected_edge = nil
 
-                            tree_edges << [from, to]
-                            break edge
-                          end
-                        end
+        @edges.each do |edge|
+          if (intersection = (@tree_nodes & edge)) && (intersection.size == 1)
+            from = intersection.first
+            to = (edge - [from]).first
+            @tree_nodes << to
+
+            tree_edges << [from, to]
+            selected_edge = edge
+            break
+          end
+        end
 
         if selected_edge
+          raise "@edges `#{@edges.inspect}` has to have selected_edge `#{selected_edge}`" unless @edges.include?(selected_edge)
           @edges -= [selected_edge]
-        else
-          break
         end
       end
 
+      if @tree_nodes.size == @edges.flatten.sort.uniq.size
+        raise "This graph is not connected"
+      end
+
       tree_edges
+    end
+
+    def tree_by_csv
+      self.tree.map(&:to_csv).join
     end
   end
 end

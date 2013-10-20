@@ -1,5 +1,7 @@
 $:.unshift(File.dirname(__FILE__))
 
+require "csv"
+
 require "base_extension"
 
 require "project_visualizing_helpers/base"

@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+require 'getoptlong'
+require './lib/project_visualizing_helpers'
+
+usage = <<EOS
+Usage: graph2tree [file]
+-v --version display version information and exit.
+-c --center  specify center name
+EOS
+
+opts = GetoptLong.new(
+  ['--help', '-h', GetoptLong::NO_ARGUMENT],
+  ['--version', '-v', GetoptLong::NO_ARGUMENT],
+  ['--center', '-c', GetoptLong::REQUIRED_ARGUMENT]
+)
+
+center = nil
+
+begin
+  opts.each do |opt, arg|
+    case opt
+    when '--help'; puts usage; exit
+    when '--version'; puts Railroad2Dot::VERSION; exit
+    when '--center'
+      center = arg
+    end
+  end
+rescue StandardError => e
+  puts "wrong option" + e.inspect
+  exit
+end
+
+puts ProjectVisualizingHelpers::Graph.new(ARGF.read, :center => center).tree_by_csv
