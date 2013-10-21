@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+# INPUT: some log file
+# OUTPUT: stacktrace_number(1,2,3..):path:line_number: ..
+#
+# Example:
+# 1,/foo/bar.txt,123,in `foo`
+# 1,/foo/bar.txt,456,in `baz`
+# 2,/foo/bar/baz.txt,457,in `foo`
+# 2,/foo/bar/baz/baz2.txt,1,in `foo`
+
+count = 0
+state = :outside
+
+while line = gets
+  if line =~ /^\s*(?<path>[^:]+):(?<lnum>[0-9]+):(?<other>.*)\s*$/
+    count += 1 if state == :outside
+    puts "#{count},#{$~[:path]},#{$~[:lnum]},#{$~[:other]}"
+    state = :inside
+  else
+    state = :outside
+  end
+end
