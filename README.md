@@ -1,6 +1,12 @@
 project_visualizing_helpers
 ===========================
 
+Install
+-------
+```shell
+brew install libmagic
+```
+
 Usage
 -----
 HookMethodを外部プロジェクトで使う場合は

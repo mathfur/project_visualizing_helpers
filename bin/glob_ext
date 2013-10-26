@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+require 'getoptlong'
+require './lib/project_visualizing_helpers'
+
+usage = <<EOS
+Usage: glob_ext [file]
+-h --help         Display version information and exit.
+-g --grep=pattern Add column to the count that the number of match this pattern.
+-t --only-text    Search only text file.
+EOS
+
+opts = GetoptLong.new(
+  ['--help',      '-h', GetoptLong::NO_ARGUMENT],
+  ['--grep',      '-g', GetoptLong::REQUIRED_ARGUMENT],
+  ['--only-text', '-t', GetoptLong::NO_ARGUMENT]
+)
+
+pattern = nil
+only_text = false
+
+begin
+  opts.each do |opt, arg|
+    case opt
+    when '--help'; puts usage; exit
+    when '--only-text';
+      only_text = true
+    when '--grep'
+      pattern = arg
+    end
+  end
+rescue StandardError => e
+  puts "wrong option" + e.inspect
+  exit
+end
+
+# HEADER LINE
+puts "path,entry,line_count,bytes,match_count,is_file,mine"
+
+ProjectVisualizingHelpers::GlobExt.new(:grep => pattern, :only_text => only_text).glob("#{TARGET_DIR}/**/*").each do |path, entry_count, line_count, bytes|
+  puts "#{path},#{entry_count},#{line_count},#{bytes},#{File.file?(path) ? 1 : 0},#{ProjectVisualizingHelpers::GlobExt.mime(path)}"
+end

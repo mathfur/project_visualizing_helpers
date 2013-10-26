@@ -11,6 +11,8 @@ gem 'simplecov-rcov',  :require => false
 
 gem 'i18n'
 
+gem 'ruby-filemagic'
+
 group :development do
   gem "jeweler",  "~> 1.6.4"
 end
