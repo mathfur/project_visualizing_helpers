@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+require 'getoptlong'
+require './lib/project_visualizing_helpers'
+
+usage = <<EOS
+Usage: varname_and_lnum [file]
+-v --version                      display version information and exit.
+-r --exclude-ruby-reserved-words  do not output ruby reserved words.
+-r --exclude-ruby-regular-wrods   do not output ruby regular words or reserved words.
+-c --exclude-ctags=tag_file_name  do not output if word exist in ctags file.
+-s --exclude-short-word=N         do not output if word length is less than N.
+EOS
+
+opts = GetoptLong.new(
+  ['--help',                        '-h', GetoptLong::NO_ARGUMENT],
+  ['--exclude-ruby-reserved-words', '-r', GetoptLong::NO_ARGUMENT],
+  ['--exclude-ruby-regular-words',  '-g', GetoptLong::NO_ARGUMENT],
+  ['--exclude-ctags',               '-c', GetoptLong::OPTIONAL_ARGUMENT],
+  ['--exclude-short-word',          '-s', GetoptLong::OPTIONAL_ARGUMENT]
+)
+
+RUBY_RESERVED_WORDS = %w{
+  BEGIN    class    ensure   nil      self     when
+  END      def      false    not      super    while
+  alias    defined? for      or       then     yield
+  and      do       if       redo     true     __LINE__
+  begin    else     in       rescue   undef    __FILE__
+  break    elsif    module   retry    unless   __ENCODING__
+  case     end      next     return   until
+}
+
+RUBY_REGULAR_WORDS = %w{
+  class_eval define_method extend include module_eval
+  blank eval gsub p print send sub to_s to_a
+  Array String Object
+}
+
+exclude_words = []
+exclude_length = nil
+
+begin
+  opts.each do |opt, arg|
+    case opt
+    when '--help'; puts usage; exit
+    when '--exclude-ruby-reserved-words'
+      exclude_words += RUBY_RESERVED_WORDS
+    when '--exclude-ruby-regular-words'
+      exclude_words += RUBY_RESERVED_WORDS + RUBY_REGULAR_WORDS
+    when '--exclude-ctags'
+      ctags_file_path = arg.present? ? arg : "#{TARGET_DIR}/tags"
+      raise "ctags file `#{ctags_file_path}` does not exist." unless File.exist?(ctags_file_path)
+      exclude_words += File.read(ctags_file_path).split("\n").map{|line| line[/^[^ ]+/] }.compact
+    when '--exclude-short-word'
+      exclude_length = arg.to_s =~ /\A[0-9]+\Z/ ? arg.to_i : 3
+    end
+  end
+rescue StandardError => e
+  puts "wrong option" + e.inspect
+  exit
+end
+
+while line = ARGF.gets
+  line.scan(/[\w_]+/).each do |word|
+    if !exclude_words.include?(word) and (exclude_length && exclude_length <= word.length)
+      puts "#{ARGF.path},#{ARGF.lineno},#{word}"
+    end
+  end
+end
