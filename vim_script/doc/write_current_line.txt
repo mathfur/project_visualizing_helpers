@@ -1,0 +1,5 @@
+カーソルが動くごとに~/.vim/CURRENT_LINE_LOGに"カレントファイル:行番号"を書き込んでいく。
+
+* StartCurrentLineLoggingで開始すると
+* StopCurrentLineLoggingで停止する
+* ClearCurrentLineLogでログを初期化する
