@@ -56,6 +56,67 @@ class Array
       self[1..-1].inject(self[0]){|s, e| s + e }
     end
   end
+
+  def adjacent_pairs
+    if self.length <= 1
+      []
+    else
+      (self[0..self.length-2]).zip(self[1..self.length-1])
+    end
+  end
+end
+
+class Module
+  # result contain Class too.
+  def fr_modules
+    self.constants.map{|m| self.const_get(m) }.select{|m| m.class.ancestors.map(&:to_s).include?("Module") }
+  end
+
+  def fr_classes
+    self.constants.map{|m| self.const_get(m) }.select{|m| m.class == Class }
+  end
+
+  # RETURN :: [[Class], [Module]]
+  def child_classes(arrowed_depth)
+    if arrowed_depth == 0
+      [[], []]
+    else
+      matrix = self.fr_modules.map{|child| child.child_classes(arrowed_depth-1) }
+
+      if matrix.present?
+        classes, modules = matrix.transpose.map(&:sum)
+      else
+        classes = []
+        modules = []
+      end
+
+      [(classes + self.fr_classes).uniq, (modules + self.fr_modules).uniq]
+    end
+  end
+end
+
+module Enumerable
+  def break(&block)
+    oks = []
+    remainder = []
+    breaked = false
+
+    self.each do |e|
+      if breaked
+        remainder << e
+      else
+        r = block.call(e)
+        if !r
+          breaked = true
+          remainder << e
+        else
+          oks << e
+        end
+      end
+    end
+
+    [oks, remainder]
+  end
 end
 
 class Hash

@@ -17,6 +17,7 @@ require "project_visualizing_helpers/db_schema2csv"
 require "project_visualizing_helpers/class_diagram2instance_diagram"
 require "project_visualizing_helpers/hook_method"
 require "project_visualizing_helpers/glob_ext"
+require "project_visualizing_helpers/include2csv"
 
 BASE_DIR = "#{File.dirname(__FILE__)}/.."
 TARGET_DIR = Dir.pwd

@@ -9,11 +9,16 @@ brew install libmagic
 
 Usage
 -----
-HookMethodを外部プロジェクトで使う場合は
-lib/project_visualizing_helpers/hook_method.rbを適当な場所にコピーして使う。
-```
+hook_method,include2csvは外部プロジェクトで使う。
+適当な場所にlib/project_visualizing_helpers/{hook_method,include2csv}.rbをコピーしてrequireする。
+```ruby
 require "hook_method"
 f = open(ファイル名, "w")
 ProjectVisualizingHelpers::HookMethod.hook(DummyClassForHookMethod, f)
 f.close
+```
+
+```
+require "include2csv"
+puts ProjectVisualizingHelpers::Include2CSV.new.to_csv
 ```

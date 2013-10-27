@@ -5,6 +5,4 @@ require 'simplecov-rcov'
 SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
 SimpleCov.start
 
-BASE_DIR = "#{File.dirname(__FILE__)}/.."
-
 require "./lib/project_visualizing_helpers"
