@@ -1,0 +1,62 @@
+body {
+  font-family: "Consolas", "Liberation Mono", "Courier", "monospace";
+  padding-top: 40px;
+}
+
+svg {
+  background: -webkit-linear-gradient(top,  #f0f0ff,  #fff);       /* Safari 5.1+,  Chrome 10+,  iOS Safari 5.1+,  Android 4.0+ */
+  background:    -moz-linear-gradient(top,  #f0f0ff,  #fff);       /* Firefox 3.6-15.0 */
+  background:      -o-linear-gradient(top,  #f0f0ff,  #fff);       /* Opera 11.10-12.10 */
+  background:         linear-gradient(to bottom,  #f0f0ff,  #fff); /* IE10,  Firefox 16.0+,  Opera 12.50+ */
+}
+
+div#base {
+  position: relative;
+  padding: 30px;
+}
+
+path.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+svg text.label {
+  color: "red"
+  font-family: sans-serif;
+  text-shadow: none;
+  font-weight: normal;
+}
+
+div.label {
+  background-color: #FFFFFF;
+  border-radius: 3px;
+  color: #000;
+
+  z-index: 5;
+  position: absolute;
+  visibility: visible;
+
+  font-family: trebuchet ms, helvetica, sans-serif;
+  opacity: 0.6;
+  border-width: 0;
+}
+
+.genericon {
+  text-align: center;
+  font-size: 15px;
+}
+
+.x-axis-group.axis path{
+  fill: #ccc;
+  stroke: #ccc;
+  stroke-width: 2px;
+  shape-rendering: crispEdges;
+}
+
+.y-axis-group.axis path{
+  fill: #ccc;
+  stroke: #ccc;
+  stroke-width: 2px;
+  shape-rendering: crispEdges;
+}

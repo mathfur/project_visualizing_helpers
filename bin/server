@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+# -*- encoding: utf-8 -*-
+
+require 'rubygems' unless defined?(gem)
+here = File.dirname(__FILE__)
+$LOAD_PATH << File.expand_path(File.join(here,  '..',  'lib'))
+
+require 'getoptlong'
+
+usage = <<EOS
+Usage: server [options]
+EOS
+
+opts = GetoptLong.new(
+  ['--help',  '-h',  GetoptLong::NO_ARGUMENT]
+)
+
+begin
+  opts.each do |opt,  arg|
+    case opt
+    when '--help'; puts usage; exit
+    end
+  end
+rescue StandardError => e
+  puts "wrong option: " + e.inspect
+  exit
+end
+
+require "./lib/project_visualizing_helpers"
+require "project_visualizing_helpers/server"
