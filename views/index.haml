@@ -1,0 +1,46 @@
+!!!
+%html
+  %head
+    %title title
+    %meta{:'http-equiv' => "Content-Type", :content => "text/html;charset=utf-8"}
+    %link{:href => "/css/reset.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/genericons.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/bootstrap.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/bootstrap-responsive.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/main.css", :rel => "stylesheet", :type => "text/css"}
+    %script{:src => "/js/d3.js"}
+    %script{:src => '/js/jquery-2.0.3.js'}
+    %script{:src => '/js/underscore.js'}
+    %script{:src => '/js/helper.js'}
+    %script{:src => '/js/bootstrap.js'}
+    %script{:src => '/js/main2.js'}
+    %script{:src => '/js/main3.js'}
+  %body
+    %div.navbar.navbar-fixed-top
+      %div.navbar-inner
+        %div.container
+          %ul.nav.pull-left
+            %a.brand DrillDownTool
+
+    %div#base
+      %div.row
+        Filters:
+        %input#filters.form-control{:rows => 3, :type => 'text', :value => ''}
+        X-Coordinate:
+        %textarea#x-coordinate.form-control{:rows => 3}= "sex\nuser\nbyte\n"
+        Y-Coordinate:
+        %textarea#y-coordinate.form-control{:rows => 3}= "query\nindex\ntime\n"
+        %div#custom-fields
+          Custom Fields:
+          %button#add-field AddField
+          %div.custom-field
+            %button.delete-field x
+            %input.key{:type => 'text', :value => 'sex'}
+            %input.type{:type => 'text', :value => 'string'}
+            %input.value{:type => 'text', :value => '_.filter(users, function(u){ return u.name == d.user })[0].sex'}
+            // %input.key{:type => 'text', :value => 'user'}
+            // %input.value{:type => 'text', :value => 'd.user'}
+        %div
+          %button#update2 Update2
+
+%script{:src => "js/main.js"}

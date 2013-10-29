@@ -13,6 +13,9 @@ gem 'i18n'
 
 gem 'ruby-filemagic'
 
+gem 'sinatra'
+gem 'coffee-script'
+
 group :development do
   gem "jeweler",  "~> 1.6.4"
 end

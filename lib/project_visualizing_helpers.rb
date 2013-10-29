@@ -4,6 +4,7 @@ require "csv"
 require "erb"
 require "tempfile"
 require "filemagic"
+require "sinatra"
 
 require "base_extension"
 
