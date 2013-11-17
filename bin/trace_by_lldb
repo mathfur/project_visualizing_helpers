@@ -7,28 +7,42 @@ from optparse import OptionParser, OptionValueError
 
 import lib.python.lldb_helper as helper
 
-usage = "usage: %prog debug_built_ruby_bin_file target_ruby_file"
+usage = """
+usage: %prog mode ruby_bin rb_fname
+
+mode:      show_current_fname, list_string_literal
+ruby_bin:  debug built ruby bin file path
+rb_fname:  target ruby source file path
+"""
 parser = OptionParser(usage)
 
 (options, args) = parser.parse_args()
 
-if not args or len(args) < 2:
-    parser.error("require ruby_bin and target_ruby_file")
-    parser.print_help()
-    exit()
+if not args or len(args) != 3:
+  parser.error("require mode, ruby_bin and target_ruby_file")
+  parser.print_help()
+  exit()
 
-ruby_bin = args[0]
-ruby_target_file = args[1]
+mode = args[0]
+ruby_bin = args[1]
+ruby_target_file = args[2]
 
 if not os.path.exists(ruby_bin):
-    parser.error("ruby_bin file `%s` is not exist" % ruby_bin)
-    parser.print_help()
-    exit()
+  parser.error("ruby_bin file `%s` is not exist" % ruby_bin)
+  parser.print_help()
+  exit()
 
 if not os.path.exists(ruby_target_file):
-    parser.error("ruby targate file `%s` is not exist" % ruby_target_file)
-    parser.print_help()
-    exit()
+  parser.error("ruby targate file `%s` is not exist" % ruby_target_file)
+  parser.print_help()
+  exit()
+
+if not mode in ['show_current_fname', 'list_string_literal']:
+  parser.error("require mode, ruby_bin and target_ruby_file")
+  parser.print_help()
+  exit()
+
+#-----------------------------------------------
 
 debugger = lldb.SBDebugger.Create()
 debugger.SetAsync (False)
@@ -37,21 +51,43 @@ target = debugger.CreateTargetWithFileAndArch(ruby_bin, lldb.LLDB_ARCH_DEFAULT)
 res = lldb.SBCommandReturnObject()
 
 if target:
-    h = helper.LLDBFrame(target, None, None)
+  h = helper.LLDBFrame(target, None, None)
+
+  if mode == 'show_current_fname':
     bp = target.BreakpointCreateByName("rb_call", target.GetExecutable().GetFilename());
-    
+
     bp.SetCondition("argc > 1")
 
     process = target.LaunchSimple([ruby_target_file], None, os.getcwd())
     if process:
-        while True:
-            state = process.GetState()
-            if state == lldb.eStateStopped:
-                thread = process.GetThreadAtIndex(0)
-                if thread:
-                    frame = thread.GetFrameAtIndex(0)
-                    h = helper.LLDBFrame(target, process, frame)
-                    print "current_fname = %s;" % h.current_fname()
-                    process.Continue()
-            else:
-                break
+      while True:
+        state = process.GetState()
+        if state == lldb.eStateStopped:
+          thread = process.GetThreadAtIndex(0)
+          if thread:
+            frame = thread.GetFrameAtIndex(0)
+              h = helper.LLDBFrame(target, process, frame)
+              print "current_fname = %s;" % h.current_fname()
+              process.Continue()
+        else:
+          break
+  if mode == 'list_string_literal':
+    target.BreakpointCreateByLocation('eval.c', 2979)
+    target.BreakpointCreateByLocation('eval.c', 4183)
+
+    process = target.LaunchSimple ([rb_fname], None, os.getcwd())
+    if process:
+      while True:
+        state = process.GetState ()
+        if state == lldb.eStateStopped:
+          thread = process.GetThreadAtIndex (0)
+          if thread:
+            frame = thread.GetFrameAtIndex (0)
+            h = helper.LLDBFrame(target, process, frame)
+            node = frame.FindVariable('node')
+            r = h.inspect_node(node)
+            if r['type'] == 'NODE_STR':
+              print r['u1']['value']
+            process.Continue()
+        else:
+          break
