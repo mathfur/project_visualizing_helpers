@@ -338,7 +338,6 @@ puts(10)
 RB_SOURCE
 node = frame.FindVariable('node')
 if h.get_node_type(node) == 'NODE_FCALL':
-  pp = pprint.PrettyPrinter(2)
   pp.pprint(h.inspect_node(node))
   print ", "
 APPEND_STATEMENT
@@ -347,6 +346,26 @@ APPEND_STATEMENT
       json_source = "[" + results.join("\n").gsub(/u?'/){ '"' } + " null]"
       results = JSON.parse(json_source)
       results[0]['u3']['node']['u1']['node']['u1']['value'].should == "10"
+    end
+
+    specify do
+      #results = execute_with_break(<<RB_SOURCE, [['main.c', 48]], <<APPEND_STATEMENT)
+      results = execute_with_break(<<RB_SOURCE, {'ruby_run' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+puts(10)
+RB_SOURCE
+BREAK_STATMENT
+ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
+pp.pprint(h.inspect_node(ruby_eval_tree))
+print ", "
+break
+APPEND_STATEMENT
+
+      require "json"
+      json_source = "[" + results.join("\n").gsub(/u?'/){ '"' } + " null]"
+      results = JSON.parse(json_source)
+      results[0]['u3']['node']['u3']['node']['type'].should == "NODE_ARRAY"
+      results[0]['u3']['node']['u3']['node']['u1']['node']['type'].should == 'NODE_LIT'
+      results[0]['u3']['node']['u3']['node']['u1']['node']['u1']['value'].should == '10'
     end
   end
 
@@ -478,6 +497,8 @@ import os
 import pprint
 
 import lib.python.lldb_helper as helper
+
+pp = pprint.PrettyPrinter(2)
 
 exe = "#{DEBUG_BUILD_RUBY_PATH}"
 rb_fname = "#{TMP_RUBY_SOURCE}"

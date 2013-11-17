@@ -463,3 +463,16 @@ class LLDBFrame(object):
       return s.replace('"', '')
     else:
       return ''
+
+  def find_all_literals(self, node_dic):
+    if ('type' in node_dic) and node_dic['type'] == 'NODE_LIT':
+      if node_dic['u1'] and node_dic['u1']['value']:
+        return [node_dic['u1']['value']]
+      else:
+        return []
+    else:
+      result = []
+      for _, v in node_dic.items():
+        if isinstance(v, dict):
+          result += self.find_all_literals(v)
+      return result
