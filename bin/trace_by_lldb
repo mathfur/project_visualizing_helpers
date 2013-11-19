@@ -7,10 +7,12 @@ from optparse import OptionParser, OptionValueError
 
 import lib.python.lldb_helper as helper
 
+pp = pprint.PrettyPrinter(2)
+
 usage = """
 usage: %prog mode ruby_bin rb_fname
 
-mode:      show_current_fname, list_string_literal
+mode:      show_current_fname, list_string_literal, print_ruby_eval_tree
 ruby_bin:  debug built ruby bin file path
 rb_fname:  target ruby source file path
 """
@@ -37,7 +39,7 @@ if not os.path.exists(ruby_target_file):
   parser.print_help()
   exit()
 
-if not mode in ['show_current_fname', 'list_string_literal']:
+if not mode in ['show_current_fname', 'list_string_literal', 'print_ruby_eval_tree']:
   parser.error("require mode, ruby_bin and target_ruby_file")
   parser.print_help()
   exit()
@@ -71,7 +73,8 @@ if target:
             process.Continue()
         else:
           break
-  if mode == 'list_string_literal':
+
+  elif mode == 'list_string_literal':
     target.BreakpointCreateByLocation('eval.c', 2979)
     target.BreakpointCreateByLocation('eval.c', 4183)
 
@@ -91,3 +94,17 @@ if target:
             process.Continue()
         else:
           break
+
+  elif mode == 'print_ruby_eval_tree':
+    target.BreakpointCreateByName("ruby_run", target.GetExecutable().GetFilename());
+
+    process = target.LaunchSimple ([ruby_target_file], None, os.getcwd())
+    if process:
+        state = process.GetState ()
+        if state == lldb.eStateStopped:
+            thread = process.GetThreadAtIndex (0)
+            if thread:
+                frame = thread.GetFrameAtIndex (0)
+                h = helper.LLDBFrame(target, process, frame)
+                ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
+                print h.inspect_node(ruby_eval_tree)
