@@ -338,7 +338,6 @@ puts(10)
 RB_SOURCE
 node = frame.FindVariable('node')
 if h.get_node_type(node) == 'NODE_FCALL':
-  pp = pprint.PrettyPrinter(2)
   pp.pprint(h.inspect_node(node))
   print ", "
 APPEND_STATEMENT
@@ -478,6 +477,8 @@ import os
 import pprint
 
 import lib.python.lldb_helper as helper
+
+pp = pprint.PrettyPrinter(2)
 
 exe = "#{DEBUG_BUILD_RUBY_PATH}"
 rb_fname = "#{TMP_RUBY_SOURCE}"

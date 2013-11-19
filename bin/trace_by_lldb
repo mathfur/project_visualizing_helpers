@@ -66,9 +66,9 @@ if target:
           thread = process.GetThreadAtIndex(0)
           if thread:
             frame = thread.GetFrameAtIndex(0)
-              h = helper.LLDBFrame(target, process, frame)
-              print "current_fname = %s;" % h.current_fname()
-              process.Continue()
+            h = helper.LLDBFrame(target, process, frame)
+            print "current_fname = %s;" % h.current_fname()
+            process.Continue()
         else:
           break
   if mode == 'list_string_literal':
