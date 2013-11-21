@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+import lldb
+import os
+import pprint
+import time
+
+from optparse import OptionParser, OptionValueError
+
+import lib.python.lldb_helper as helper
+
+pp = pprint.PrettyPrinter(2)
+
+usage = """
+usage: %prog ruby_bin PID
+
+ruby_bin: debug built ruby bin file path
+PID:      attach process PID
+"""
+parser = OptionParser(usage)
+
+(options, args) = parser.parse_args()
+
+if not args or len(args) != 2:
+  parser.error("require ruby_bin and PID")
+  parser.print_help()
+  exit()
+
+ruby_bin = args[0]
+pid = int(args[1])
+
+if not os.path.exists(ruby_bin):
+  parser.error("ruby_bin file `%s` is not exist" % ruby_bin)
+  parser.print_help()
+  exit()
+
+#-----------------------------------------------
+
+debugger = lldb.SBDebugger.Create()
+debugger.SetAsync (False)
+
+target = debugger.CreateTarget(ruby_bin)
+res = lldb.SBCommandReturnObject()
+
+if target:
+  h = helper.LLDBFrame(target, None, None)
+
+  listener = lldb.SBListener('my.attach.listener')
+  error = lldb.SBError()
+  process = target.AttachToProcessWithID(listener, pid, error)
+
+  if process:
+      state = process.GetState ()
+      if state == lldb.eStateStopped:
+          thread = process.GetThreadAtIndex (0)
+          if thread:
+              for frame in thread:
+                  function = frame.GetFunction()
+                  if function and function.GetName():
+                       h = helper.LLDBFrame(target, process, frame)
+                       h.print_backtrace()
+                       break
+  process.Detach()
+  time.sleep(3)
