@@ -319,7 +319,6 @@ def foo
 end
 foo
 RB_SOURCE
-argc > 1
 BREAK_STATMENT
 h.print_backtrace()
 APPEND_STATEMENT
@@ -328,6 +327,57 @@ APPEND_STATEMENT
       results.should be_any{|line| line =~ /#{rb_fname_pattern}:2:in `bar`$/}
       results.should be_any{|line| line =~ /#{rb_fname_pattern}:5:in `foo`$/}
       results.should be_any{|line| line =~ /#{rb_fname_pattern}:7:$/}
+    end
+  end
+
+  describe '#local_vars' do
+    specify do
+      results = execute_with_break(<<RB_SOURCE, {'rb_call' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+a10 = 10
+b20 = 100
+
+def foo(x,y)
+  abc = 10
+  print 'hello'
+  defg = 15
+end
+
+foo(1,2)
+RB_SOURCE
+BREAK_STATMENT
+if h.get_func_name() == 'foo':
+  for k, v in h.local_vars().items():
+    print "%s: %s" % (k, h.inspect_value(v))
+APPEND_STATEMENT
+
+      results.should be_include(': nil')
+      results.should be_include('~: nil')
+      results.should be_include('x: 1')
+      results.should be_include('y: 2')
+      results.should be_include('abc: 10')
+      results.should be_include('defg: nil')
+      results.size.should == 6
+    end
+  end
+
+  describe '#get_func_name' do
+    specify do
+      results = execute_with_break(<<RB_SOURCE, {'rb_call' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+def bar
+  puts(1, 2)
+end
+def foo
+  bar
+end
+foo
+RB_SOURCE
+argc > 1
+BREAK_STATMENT
+print h.get_func_name()
+APPEND_STATEMENT
+
+      results.should be_include('bar')
+      results.size.should == 1
     end
   end
 

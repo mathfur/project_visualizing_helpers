@@ -399,7 +399,7 @@ class LLDBFrame(object):
     res = lldb.SBCommandReturnObject()
     self.ci.HandleCommand("breakpoint command add -o 'handler()' -s python %d" % new_bp.GetID(),  res)
   
-  def get_backtrace(self, origin_frame=None):
+  def get_backtrace(self, origin_frame=None, only_top=False):
     if origin_frame:
       results = []
     else:
@@ -407,6 +407,8 @@ class LLDBFrame(object):
       last_func = self.get_member(origin_frame, 'last_func')
       method_name = (last_func and self.id2name(last_func)) or ''
       results = [(self.current_fname(), self.current_line(), method_name)]
+    if only_top:
+      return results
     prev = self.get_member(origin_frame, 'prev')
     if self.is_not_nil(prev):
       node = self.get_member(origin_frame, 'node')
@@ -426,7 +428,14 @@ class LLDBFrame(object):
         else:
           method_name_ = ''
         print "%s:%s:%s" % (fname, line_num, method_name_)
-   
+
+  def get_func_name(self, origin_frame=None):
+    top_trace = self.get_backtrace(origin_frame, True)
+    if len(top_trace) == 0:
+      return None
+    else:
+      return top_trace[0][-1]
+
   # == more abstract
   def callc(self, method_name, args):
     cmd = "%(method_name)s(%(args)s)" % {'method_name': method_name, 'args': str(args)}
@@ -476,3 +485,18 @@ class LLDBFrame(object):
         if isinstance(v, dict):
           result += self.find_all_literals(v)
       return result
+
+  # get current pairs of local variable and the value.
+  def local_vars(self):
+    dic = {}
+    i = 1
+    while True:
+      local_tbl = self.frame.EvaluateExpression('ruby_scope->local_tbl')
+      local_vars = self.frame.EvaluateExpression('ruby_scope->local_vars')
+      k = local_tbl.GetValueForExpressionPath("[%d]" % i)
+      v = local_vars.GetValueForExpressionPath("[%d]" % (i - 1))
+      if not self.is_not_nil(k):
+          break
+      dic[self.id2name(k)] = v
+      i += 1
+    return dic
