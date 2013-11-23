@@ -3,6 +3,7 @@ import commands
 import optparse
 import shlex
 import pprint
+import json
 
 def enhance_method_missing_handler(dbg, frame):
   lldb_frame = LLDBFrame(None, None, frame)
@@ -76,9 +77,9 @@ class LLDBFrame(object):
     ('NODE_OP_ASGN2', [['u1', 'node'], ['u2', 'node'], ['u3', 'node'], ['u3', 'id'], ['u2', 'id']]),
     ('NODE_OP_ASGN_AND', [['u1', 'node'], ['u2', 'node']]),
     ('NODE_OP_ASGN_OR', [['u1', 'node'], ['u2', 'node'], ['u3', 'id']]),
-    ('NODE_CALL', [['u1', 'node'], ['u3', 'node'], ['u2', 'id']]),
-    ('NODE_FCALL', [['u3', 'node'], ['u2', 'id']]),
-    ('NODE_VCALL', [['u2', 'id']]),
+    ('NODE_CALL', [['u1', 'node'], ['u3', 'node'], ['u2', 'id']]), # explicit receiver
+    ('NODE_FCALL', [['u3', 'node'], ['u2', 'id']]),                # implicit receiver
+    ('NODE_VCALL', [['u2', 'id']]),                                # implicit receiver, no args
     ('NODE_SUPER', [['u3', 'node']]),
     ('NODE_ZSUPER', [['u3', 'node']]),
     ('NODE_ARRAY', [['u1', 'node'], ['u3', 'node'], ['u2', 'argc']]),
@@ -167,7 +168,9 @@ class LLDBFrame(object):
   t_match = 0x23
   t_symbol = 0x24
   t_node = 0x3f
-  
+
+  FL_USHIFT = 11
+
   def __init__(self, target, process, frame):
     self.frame = frame
     self.target = target or frame.GetThread().GetProcess().GetTarget()
@@ -184,7 +187,7 @@ class LLDBFrame(object):
         return None
     else:
       return None
-  
+
   def get_node_type(self, node):
     if self.is_not_nil(node):
       idx = self.get_node_type_integer(node)
@@ -194,7 +197,7 @@ class LLDBFrame(object):
         return 'None'
     else:
       return 'None'
-  
+
   def get_node_type_integer(self, node):
     if self.is_not_nil(node):
       v = node.GetChildMemberWithName("flags")
@@ -204,33 +207,68 @@ class LLDBFrame(object):
         return None
     else:
       return None
-  
-  def inspect_node(self, node):
-    node_type = self.get_node_type(node)
-    result = {'type': node_type, 'u1': {},  'u2': {}, 'u3': {}}
-    for key, category in self.find(node_type, self.available_children):
+
+  def child_node_value(self, node, node_type, key, category, filter_types):
       #try:
       obj = self.get_member(self.get_member(node, key), category)
-      if category == 'value': r = self.inspect_value(obj)
-      elif category == 'node': r = self.inspect_node(obj)
-      elif category == 'id': r = self.id2name(obj)
-      elif category == 'argc': r = str(obj)
-      elif category == 'entry': r = "(entry)"
-      elif category == 'cnt':
-        if node_type == 'NODE_LVAR' or node_type == 'NODE_LASGN' or node_type == 'NODE_BLOCK_ARG':
-          idx = self.get_member(self.get_member(node, key), category)
-          r = self.get_string(self.frame.EvaluateExpression("rb_id2name(ruby_scope.local_tbl[%s])" % idx))
-        else:
-          r = str(obj)
-      elif category == 'tbl': r = "(tbl)"
-      elif category == 'cfunc': r = "(cfunc)"
-      elif category == 'state': r = str(obj)
-      else: r = '(None)'
-      #except:# gdb.MemoryError, gdb.error:
-      #  r = '(EREOR)'
-      result[key][category] = r
-    return result
-  
+      if filter_types:
+          if category == 'node':
+              return self.inspect_node(obj, filter_types)
+          else:
+              return None
+      else:
+          if category == 'value': r = self.inspect_value(obj)
+          elif category == 'node': r = self.inspect_node(obj)
+          elif category == 'id': r = self.id2name(obj)
+          elif category == 'argc': r = str(obj)
+          elif category == 'entry': r = "(entry)"
+          elif category == 'cnt':
+              if node_type == 'NODE_LVAR' or node_type == 'NODE_LASGN' or node_type == 'NODE_BLOCK_ARG':
+                  idx = self.get_member(self.get_member(node, key), category)
+                  r = self.get_string(self.frame.EvaluateExpression("rb_id2name(ruby_scope.local_tbl[%s])" % idx))
+              else:
+                  r = str(obj)
+          elif category == 'tbl': r = "(tbl)"
+          elif category == 'cfunc': r = "(cfunc)"
+          elif category == 'state': r = str(obj)
+          else: r = '(None)'
+          #except:# gdb.MemoryError, gdb.error:
+          #  r = '(EREOR)'
+          return r
+
+  def inspect_node_base_value(self, node):
+      if self.is_not_nil(self.get_member(node, 'flags')):
+        line_number = (int(self.get_member(node, 'flags').GetValue()) >> (self.FL_USHIFT + 8)) & (2 ** 13 - 1)
+      else:
+        line_number = None
+      fname = self.node_fname(node)
+      return {'nd_file': fname, 'line_number': line_number, 'u1': {},  'u2': {}, 'u3': {}}
+
+  def inspect_node(self, node, filter_types=None):
+      node_type = self.get_node_type(node)
+      result = self.inspect_node_base_value(node)
+      result['type'] = node_type
+      if filter_types and type(filter_types) != list:
+          filter_types = [filter_types]
+      transit = filter_types and (not (node_type in filter_types))
+      if transit:
+          result = []
+      for key, category in self.find(node_type, self.available_children):
+          if not transit:
+              filter_types = None
+          r = self.child_node_value(node, node_type, key, category, filter_types)
+          if transit:
+              if r and type(r) == list:
+                  result.extend(r)
+              elif r:
+                  result.extend([r])
+          else:
+              result[key][category] = r
+      return result
+
+  def node_to_json(self, node, filter_types=None):
+      return json.dumps(self.inspect_node(node, filter_types))
+
   def to_xml(self, dic):
     def wrap_tag(name, dic):
       return "<%(name)s %(attrs)s>%(inner)s</%(name)s>" % {'name': name, 'inner': dic[name], 'attrs': dic.get('attrs', '')}
@@ -246,37 +284,40 @@ class LLDBFrame(object):
       for name in ['type', 'u1', 'u2', 'u3']:
         if converted_dic['type']:
           inner = inner + wrap_tag(name, converted_dic)
-  
+
       if inner == '' and converted_dic['value'] == '':
         return ''
       else:
         return "<node value='%(value)s'>%(inner)s</node>" % {'value': converted_dic['value'], 'inner': inner}
     else:
       return str(dic)
-  
+
   def get_node_by_xml(self, node):
     dic = self.inspect_node(node)
     return self.to_xml({'node': dic})
-  
+
   # ===============================================
-  
+
   def current_node(self):
     return self.frame.EvaluateExpression('ruby_current_node')
-  
+
   def current_line(self):
     return self.line_num(self.current_node())
-  
+
   def current_fname(self):
-    r = self.get_member(self.frame.EvaluateExpression('ruby_current_node'), 'nd_file')
+    return self.node_fname(self.frame.EvaluateExpression('ruby_current_node'))
+
+  def node_fname(self, node):
+    r = self.get_member(node, 'nd_file')
     return self.get_string(r)
-  
+
   def find(self, elem, whole):
     arr = filter((lambda t: t[0] == elem), whole)
     if arr:
       return arr[0][1]
     else:
       return []
-  
+
   def get_class_name(self, value):
     if self.have_valid_flags(value):
       basic = self.frame.EvaluateExpression("((struct RBasic*)(%d))" % int(value.GetValue()))
@@ -289,42 +330,42 @@ class LLDBFrame(object):
         b = self.frame.EvaluateExpression("((struct RString*)(%d))" % int(a.GetValue()))
         c = self.get_member(b, 'ptr')
         return self.get_string(c)
-  
+
   def get_ruby_object_type(self, value):
     if self.have_valid_flags(value):
       flags = self.get_member(self.cast2(value, 'struct RBasic*'), 'flags')
       return int(flags.GetValue()) & 0x3f
-  
+
   def have_valid_klass(self, value):
     return self.get_ruby_object_type(value)
-  
+
   types_with_klass = [t_none, t_nil, t_object, t_class, t_iclass, t_module,
       t_float, t_string, t_regexp, t_array, t_fixnum, t_hash, t_struct,
       t_bignum, t_file, t_true, t_false, t_data, t_match, t_symbol]
-  
+
   def is_integer(self, value):
     v = value.GetValueAsUnsigned()
     return ((v % 2) == 1)
-  
+
   def is_symbol(self, value):
     v = value.GetValueAsUnsigned()
     return ((v & 0xFF) == 0x0E)
-  
+
   def is_true(self, value):
     return (value.GetValueAsUnsigned() == 2)
-  
+
   def is_false(self, value):
     return (value.GetValueAsUnsigned() == 0)
-  
+
   def is_nil(self, value):
     return (value.GetValueAsUnsigned() == 4)
-  
+
   def is_bool(self, value):
     return (self.is_true(value) or self.is_false(value) or self.is_nil(value))
-  
+
   def have_valid_flags(self, value):
     return not (self.is_bool(value) or self.is_symbol(value) or self.is_integer(value))
-  
+
   def inspect_value(self, value):
     if self.have_valid_klass(value):
       klass = self.get_class_name(value)
@@ -344,7 +385,7 @@ class LLDBFrame(object):
         return self.inspect_bool(value)
       else:
         return "(NA not klass)"
-  
+
   def inspect_string(self, value):
     flags = int(self.get_member(self.cast2(value, 'struct RBasic*'), 'flags').GetValue())
     elts_shared_flag = (flags >> 13) & 0x01
@@ -355,14 +396,14 @@ class LLDBFrame(object):
       return c
     else:
       return "'%s'" % self.get_string(self.get_member(self.cast2(value, 'struct RString*'), 'ptr')).replace("'", "\\'")
-  
+
   def inspect_symbol(self, value):
     inted_value = int(value.GetValue())
     return ":%s" % self.get_string(self.callc('rb_id2name', (inted_value >> 8)))
-  
+
   def inspect_integer(self, value):
     return str(int(value.GetValue()) >> 1)
-  
+
   def inspect_bool(self, value):
     if self.is_true(value):
       return 'true'
@@ -372,7 +413,7 @@ class LLDBFrame(object):
       return 'nil'
     else:
       return '(NA)'
-  
+
   def inspect_array(self, value):
     arr = self.cast2(value, 'struct RArray*')
     length = int(self.get_member(arr, 'len').GetValue())
@@ -380,17 +421,17 @@ class LLDBFrame(object):
     func = (lambda i: self.inspect_value(ptr.GetValueForExpressionPath('[%d]' % i)))
     arr = map(func, range(length))
     return '[' + ', '.join(arr) + ']'
-  
+
   def enhance_method_missing(self):
     new_bp = self.target.BreakpointCreateByName("rb_method_missing")
     res = lldb.SBCommandReturnObject()
     self.ci.HandleCommand("breakpoint command add -o 'helper.enhance_method_missing_handler(debugger, frame)' -s python %d" % new_bp.GetID(),  res)
-  
+
   def observe_call(self, klass_name):
     new_bp = self.target.BreakpointCreateByName("rb_call")
     res = lldb.SBCommandReturnObject()
     self.ci.HandleCommand("breakpoint command add -o 'helper.observe_call_handler(debugger, frame, \"%s\")' -s python %d" % (klass_name, new_bp.GetID()),  res)
-  
+
   def observe_load(self):
     def handler(event):
       print ">>[rb_load_file] " + self.get_string(self.frame.EvaluateExpression("fname"))
@@ -398,7 +439,7 @@ class LLDBFrame(object):
     new_bp = target.BreakpointCreateByName("rb_load_file")
     res = lldb.SBCommandReturnObject()
     self.ci.HandleCommand("breakpoint command add -o 'handler()' -s python %d" % new_bp.GetID(),  res)
-  
+
   def get_backtrace(self, origin_frame=None, only_top=False):
     if origin_frame:
       results = []
@@ -414,11 +455,10 @@ class LLDBFrame(object):
       node = self.get_member(origin_frame, 'node')
       last_func = self.get_member(prev, 'last_func')
       method_name = (self.is_not_nil(last_func) and self.id2name(last_func)) or ''
-      nd_file = self.get_member(node, 'nd_file')
-      results.extend([(self.get_string(nd_file), self.line_num(node), method_name)])
+      results.extend([(self.node_fname(node), self.line_num(node), method_name)])
       results.extend(self.get_backtrace(prev))
     return results
-  
+
   def print_backtrace(self):
     backtraces = self.get_backtrace()
     for (fname, line_num, method_name) in backtraces:
@@ -440,7 +480,7 @@ class LLDBFrame(object):
   def callc(self, method_name, args):
     cmd = "%(method_name)s(%(args)s)" % {'method_name': method_name, 'args': str(args)}
     return self.frame.EvaluateExpression(cmd)
-  
+
   def cast(self, value, typ, pointer=False):
     type_ = self.target.FindTypes(typ).GetTypeAtIndex(0)
     #type_ = self.target.FindFirstType(typ)
@@ -450,16 +490,16 @@ class LLDBFrame(object):
 
   def cast2(self, value, typ_string):
     return self.frame.EvaluateExpression("((%s)(%d))" % (typ_string, int(value.GetValue())))
-  
+
   def parse(self, gdb_string):
     return self.frame.EvaluateExpression(gdb_string)
-  
+
   def id2name(self, id_):
     return self.get_string(self.frame.EvaluateExpression("rb_id2name(%s)" % str(id_.GetValue())))
 
   def is_not_nil(self, value):
     return value and value.GetValue() and value.GetValue() != '0'
-  
+
   def get_member(self, obj, name):
     for x in obj:
       if x.GetName() == name:
@@ -467,11 +507,14 @@ class LLDBFrame(object):
     return None
 
   def get_string(self, value):
-    s = value.GetSummary()
-    if s:
-      return s.replace('"', '')
-    else:
-      return ''
+      if value:
+          s = value.GetSummary()
+          if s:
+            return s.replace('"', '')
+          else:
+            return ''
+      else:
+          return ''
 
   def find_all_literals(self, node_dic):
     if ('type' in node_dic) and node_dic['type'] == 'NODE_LIT':

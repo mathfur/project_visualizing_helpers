@@ -127,3 +127,9 @@ class Hash
     end
   end
 end
+
+class Proc
+  def c
+    self.curry
+  end
+end

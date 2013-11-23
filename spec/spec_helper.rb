@@ -7,6 +7,8 @@ SimpleCov.formatter = SimpleCov::Formatter::RcovFormatter
 SimpleCov.start
 
 require "./lib/project_visualizing_helpers"
+require "json"
+require "rexml/document"
 
 BASE_DIR = File.expand_path(File.dirname(__FILE__) + "/..")
 

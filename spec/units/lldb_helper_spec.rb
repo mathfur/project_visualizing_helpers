@@ -5,6 +5,20 @@ require "spec_helper"
 describe "helper.py" do
   let(:rb_fname_pattern){ Regexp.escape(File.basename(TMP_RUBY_SOURCE)) }
 
+  def have_key_value?(results, key, value)
+    if results.kind_of?(Hash)
+      results.any? do |k, v|
+        if [k, v] == [key, value]
+          true
+        else
+          have_key_value?(v, key, value)
+        end
+      end
+    else
+      false
+    end
+  end
+
   describe '#get_class_name' do
     specify do
       results = execute_with_break(<<RB_SOURCE, {'rb_call' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
@@ -381,21 +395,22 @@ APPEND_STATEMENT
     end
   end
 
-  describe '#inspect_node' do
+  describe '#node_to_json' do
     specify do
       results = execute_with_break(<<RB_SOURCE, [['eval.c', 2979], ['eval.c', 4183]], <<APPEND_STATEMENT)
 puts(10)
 RB_SOURCE
 node = frame.FindVariable('node')
 if h.get_node_type(node) == 'NODE_FCALL':
-  pp.pprint(h.inspect_node(node))
-  print ", "
+  print h.node_to_json(node)
+  break
 APPEND_STATEMENT
 
-      require "json"
-      json_source = "[" + results.join("\n").gsub(/u?'/){ '"' } + " null]"
+      json_source = results.join("\n")
       results = JSON.parse(json_source)
-      results[0]['u3']['node']['u1']['node']['u1']['value'].should == "10"
+      results['u3']['node']['u1']['node']['u1']['value'].should == "10"
+      results['nd_file'].should == TMP_RUBY_SOURCE
+      results['line_number'].should == 1
     end
 
     specify do
@@ -405,17 +420,59 @@ puts(10)
 RB_SOURCE
 BREAK_STATMENT
 ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
-pp.pprint(h.inspect_node(ruby_eval_tree))
+print h.node_to_json(ruby_eval_tree)
 print ", "
 break
 APPEND_STATEMENT
 
-      require "json"
-      json_source = "[" + results.join("\n").gsub(/u?'/){ '"' } + " null]"
+      json_source = "[" + results.join("\n") + " null]"
       results = JSON.parse(json_source)
       results[0]['u3']['node']['u3']['node']['type'].should == "NODE_ARRAY"
       results[0]['u3']['node']['u3']['node']['u1']['node']['type'].should == 'NODE_LIT'
       results[0]['u3']['node']['u3']['node']['u1']['node']['u1']['value'].should == '10'
+    end
+
+    specify do
+      results = execute_with_break(<<RB_SOURCE, {'ruby_run' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+class Foo
+  def bar
+  end
+end
+RB_SOURCE
+BREAK_STATMENT
+ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
+print h.node_to_json(ruby_eval_tree)
+print ", "
+break
+APPEND_STATEMENT
+
+      json_source = "[" + results.join("\n") + " null]"
+      results = JSON.parse(json_source)
+
+      have_key_value?(results[0], 'type', 'NODE_CLASS').should be_true
+      have_key_value?(results[0], 'id',   'Foo').should be_true
+      have_key_value?(results[0], 'type', 'NODE_DEFN').should be_true
+      have_key_value?(results[0], 'id',   'bar').should be_true
+    end
+
+    specify do
+      results = execute_with_break(<<RB_SOURCE, {'ruby_run' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+puts(10 + 3)
+if true
+  print :foo
+end
+RB_SOURCE
+BREAK_STATMENT
+ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
+print h.node_to_json(ruby_eval_tree, 'NODE_LIT')
+break
+APPEND_STATEMENT
+
+      json_source = results.join("\n")
+      results = JSON.parse(json_source)
+
+      results.compact.should be_all{|r| r['type'] == 'NODE_LIT'}
+      results.compact.map{|r| r['u1']['value'] }.should == ['10', '3', ':foo']
     end
   end
 
@@ -433,7 +490,6 @@ if h.get_node_type(node) == 'NODE_FCALL':
   print h.get_node_by_xml(node)
 APPEND_STATEMENT
 
-      require "rexml/document"
       doc = REXML::Document.new("<all>#{results.join("\n")}</all>")
       REXML::XPath.first(doc, "//type[text()='NODE_FCALL']").should be_true
       REXML::XPath.first(doc, "//type[text()='NODE_IF']").should be_false

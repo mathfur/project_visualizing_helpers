@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+require 'getoptlong'
+require './lib/project_visualizing_helpers'
+
+usage = <<EOS
+Usage: filter_json [file]
+-h --help display version information and exit.
+EOS
+
+opts = GetoptLong.new(
+  ['--help', '-h', GetoptLong::NO_ARGUMENT]
+)
+
+begin
+  opts.each do |opt, arg|
+    case opt
+    when '--help'; puts usage; exit
+    end
+  end
+rescue StandardError => e
+  puts "wrong option" + e.inspect
+  exit
+end
+
+only_time_now = ProjectVisualizingHelpers::FilterJSON.new(ARGF.read).traverse do
+                  node_call?.c[node_const?.c['Time'], 'now']
+                end
+
+p only_time_now

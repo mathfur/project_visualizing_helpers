@@ -12,37 +12,57 @@ pp = pprint.PrettyPrinter(2)
 usage = """
 usage: %prog mode ruby_bin ruby_target_file
 
-mode:              show_current_fname, list_all_literals, print_ruby_eval_tree
 ruby_bin:          debug built ruby bin file path
 ruby_target_file:  target ruby source file path
+mode:
+ * show_current_fname
+ * print_ruby_eval_tree:          print ruby_eval_tree at load_file and ruby_finalize_0
+ * print_ruby_eval_tree_at_mark:  print ruby_eval_tree at mark (mark is any function with more than 10 arguments)
 """
 parser = OptionParser(usage)
+
+parser.add_option(
+    "-n", "--node-type",
+    action="store",
+    type="string",
+    dest="node_types",
+    help="specify output node type: NODE_*. multiple node type can be specified by string separated by ','"
+)
 
 (options, args) = parser.parse_args()
 
 if not args or len(args) != 3:
-  parser.error("require mode, ruby_bin and target_ruby_file")
-  parser.print_help()
-  exit()
+    parser.error("require mode, ruby_bin and target_ruby_file")
+    parser.print_help()
+    exit()
 
 mode = args[0]
 ruby_bin = args[1]
 ruby_target_file = args[2]
+node_types = options.node_types
 
 if not os.path.exists(ruby_bin):
-  parser.error("ruby_bin file `%s` is not exist" % ruby_bin)
-  parser.print_help()
-  exit()
+    parser.error("ruby_bin file `%s` is not exist" % ruby_bin)
+    parser.print_help()
+    exit()
 
 if not os.path.exists(ruby_target_file):
-  parser.error("ruby targate file `%s` is not exist" % ruby_target_file)
-  parser.print_help()
-  exit()
+    parser.error("ruby targate file `%s` is not exist" % ruby_target_file)
+    parser.print_help()
+    exit()
 
-if not mode in ['show_current_fname', 'list_all_literals', 'print_ruby_eval_tree']:
-  parser.error("require mode, ruby_bin and target_ruby_file")
-  parser.print_help()
-  exit()
+if not mode in ['show_current_fname', 'print_ruby_eval_tree', 'print_ruby_eval_tree_at_mark']:
+    parser.error("require mode, ruby_bin and target_ruby_file")
+    parser.print_help()
+    exit()
+
+if node_types:
+    node_types = node_types.split(',')
+    for n in node_types:
+        if n.find('NODE_') != 0:
+            parser.error("`%s` is wrong node type. Each node type has to be started by NODE_." % n)
+            parser.print_help()
+            exit()
 
 #-----------------------------------------------
 
@@ -53,55 +73,49 @@ target = debugger.CreateTargetWithFileAndArch(ruby_bin, lldb.LLDB_ARCH_DEFAULT)
 res = lldb.SBCommandReturnObject()
 
 if target:
-  h = helper.LLDBFrame(target, None, None)
+    h = helper.LLDBFrame(target, None, None)
 
-  if mode == 'show_current_fname':
-    bp = target.BreakpointCreateByName("rb_call", target.GetExecutable().GetFilename());
+    if mode == 'show_current_fname':
+        bp = target.BreakpointCreateByName("rb_call", target.GetExecutable().GetFilename());
+        bp.SetCondition("argc > 1")
 
-    bp.SetCondition("argc > 1")
+        process = target.LaunchSimple([ruby_target_file], None, os.getcwd())
+        if process:
+            while True:
+                state = process.GetState()
+                if state == lldb.eStateStopped:
+                    thread = process.GetThreadAtIndex(0)
+                    if thread:
+                        frame = thread.GetFrameAtIndex(0)
+                        h = helper.LLDBFrame(target, process, frame)
+                        print "current_fname = %s;" % h.current_fname()
+                        process.Continue()
+                else:
+                    break
 
-    process = target.LaunchSimple([ruby_target_file], None, os.getcwd())
-    if process:
-      while True:
-        state = process.GetState()
-        if state == lldb.eStateStopped:
-          thread = process.GetThreadAtIndex(0)
-          if thread:
-            frame = thread.GetFrameAtIndex(0)
-            h = helper.LLDBFrame(target, process, frame)
-            print "current_fname = %s;" % h.current_fname()
-            process.Continue()
+    elif mode == 'print_ruby_eval_tree' or mode == 'print_ruby_eval_tree_at_mark':
+        if mode == 'print_ruby_eval_tree':
+            target.BreakpointCreateByName("load_file", target.GetExecutable().GetFilename());
+            target.BreakpointCreateByName("ruby_finalize_0", target.GetExecutable().GetFilename());
         else:
-          break
+            bp = target.BreakpointCreateByName("rb_call", target.GetExecutable().GetFilename());
+            bp.SetCondition("argc > 9")
 
-  elif mode == 'list_all_literals':
-    bp = target.BreakpointCreateByName("ruby_run", target.GetExecutable().GetFilename());
+        process = target.LaunchSimple([ruby_target_file], None, os.getcwd())
+        if process:
+            print "["
+            while True:
+                state = process.GetState()
+                if state == lldb.eStateStopped:
+                    thread = process.GetThreadAtIndex(0)
+                    if thread:
+                        frame = thread.GetFrameAtIndex(0)
+                        h = helper.LLDBFrame(target, process, frame)
+                        ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
 
-    process = target.LaunchSimple ([ruby_target_file], None, os.getcwd())
-    if process:
-      state = process.GetState ()
-      if state == lldb.eStateStopped:
-        thread = process.GetThreadAtIndex (0)
-        if thread:
-          frame = thread.GetFrameAtIndex (0)
-          h = helper.LLDBFrame(target, process, frame)
-          function = frame.GetFunction()
-          if function:
-            ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
-            node_dic = h.inspect_node(ruby_eval_tree)
-            for literal in h.find_all_literals(node_dic):
-              print literal
-
-  elif mode == 'print_ruby_eval_tree':
-    target.BreakpointCreateByName("ruby_run", target.GetExecutable().GetFilename());
-
-    process = target.LaunchSimple ([ruby_target_file], None, os.getcwd())
-    if process:
-        state = process.GetState ()
-        if state == lldb.eStateStopped:
-            thread = process.GetThreadAtIndex (0)
-            if thread:
-                frame = thread.GetFrameAtIndex (0)
-                h = helper.LLDBFrame(target, process, frame)
-                ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
-                print h.inspect_node(ruby_eval_tree)
+                        print(h.node_to_json(ruby_eval_tree, node_types))
+                        print(", ")
+                        process.Continue()
+                else:
+                    print "{}]"
+                    break
