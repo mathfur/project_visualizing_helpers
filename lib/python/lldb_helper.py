@@ -118,7 +118,7 @@ class LLDBFrame(object):
     ('NODE_ALIAS', []),
     ('NODE_VALIAS', []),
     ('NODE_UNDEF', []),
-    ('NODE_CLASS', [['u1', 'node'], ['u3', 'node'], ['u2', 'id']]),
+    ('NODE_CLASS', [['u1', 'node'], ['u3', 'node'], ['u2', 'id'], ['u2', 'node']]),  # #define nd_cpath u1.node,  #define nd_super u3.node
     ('NODE_MODULE', [['u1', 'node']]),
     ('NODE_SCLASS', [['u1', 'node']]),
     ('NODE_COLON2', [['u1', 'node'], ['u2', 'id']]),
