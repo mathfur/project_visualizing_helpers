@@ -514,6 +514,40 @@ APPEND_STATEMENT
     end
   end
 
+  describe '#instance_variables' do
+    specify do
+      results = execute_with_break(<<RB_SOURCE, {'rb_call' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+class Foo
+  def initialize(x, y)
+    @x = x
+    @y = y
+    @z = 10
+  end
+
+  def display
+    print 'bar'
+  end
+end
+
+foo = Foo.new(1, 2)
+print(1, 2, 3)
+RB_SOURCE
+argc > 2
+BREAK_STATMENT
+foo = h.local_vars()['foo']
+dic = h.instance_variables(foo)
+for k, v in dic.items():
+    print "%s,%s" % (h.inspect_value(k), h.inspect_value(v))
+APPEND_STATEMENT
+
+      results.sort.should == <<EOS.split("\n")
+'@x',1
+'@y',2
+'@z',10
+EOS
+    end
+  end
+
   describe '#get_node_by_xml' do
     specify do
       results = execute_with_break(<<RB_SOURCE, [['eval.c', 2979], ['eval.c', 4183]], <<APPEND_STATEMENT)

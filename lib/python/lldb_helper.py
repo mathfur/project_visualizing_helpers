@@ -373,24 +373,24 @@ class LLDBFrame(object):
     return not (self.is_bool(value) or self.is_symbol(value) or self.is_integer(value))
 
   def inspect_value(self, value):
-    if self.have_valid_klass(value):
-      klass = self.get_class_name(value)
-      if klass == 'String':
-        return self.inspect_string(value)
-      elif klass == 'Array':
-        return self.inspect_array(value)
+      if self.have_valid_klass(value):
+          klass = self.get_class_name(value)
+          if klass == 'String':
+              return self.inspect_string(value)
+          elif klass == 'Array':
+              return self.inspect_array(value)
+          else:
+              r = "(NA klass: %s)" % klass
+              return r
       else:
-        r = "(NA klass: %s)" % klass
-        return r
-    else:
-      if self.is_integer(value):
-        return self.inspect_integer(value)
-      elif self.is_symbol(value):
-        return self.inspect_symbol(value)
-      elif self.is_bool(value):
-        return self.inspect_bool(value)
-      else:
-        return "(NA not klass)"
+          if self.is_integer(value):
+              return self.inspect_integer(value)
+          elif self.is_symbol(value):
+              return self.inspect_symbol(value)
+          elif self.is_bool(value):
+              return self.inspect_bool(value)
+          else:
+              return "(NA not klass)"
 
   def inspect_string(self, value):
     flags = int(self.get_member(self.cast2(value, 'struct RBasic*'), 'flags').GetValue())
@@ -420,13 +420,30 @@ class LLDBFrame(object):
     else:
       return '(NA)'
 
+  def to_arr(self, value):
+      arr = self.cast2(value, 'struct RArray*')
+      length = int(self.get_member(arr, 'len').GetValue())
+      ptr = self.get_member(arr, 'ptr')
+      func = (lambda i: self.inspect_value(ptr.GetValueForExpressionPath('[%d]' % i)))
+      return map(func, range(length))
+
   def inspect_array(self, value):
-    arr = self.cast2(value, 'struct RArray*')
-    length = int(self.get_member(arr, 'len').GetValue())
-    ptr = self.get_member(arr, 'ptr')
-    func = (lambda i: self.inspect_value(ptr.GetValueForExpressionPath('[%d]' % i)))
-    arr = map(func, range(length))
-    return '[' + ', '.join(arr) + ']'
+      return '[' + ', '.join(self.to_arr(value)) + ']'
+
+  def instance_variables(self, obj):
+      iv_list =  self.cast2(
+              self.frame.EvaluateExpression('rb_obj_instance_variables(%s)' % obj.GetValue()),
+              'struct RArray*')
+
+      length = int(self.get_member(iv_list, 'len').GetValue())
+      iv_ptr = self.get_member(iv_list, 'ptr')
+
+      dic = {}
+      for i in range(length):
+          iv_name = iv_ptr.GetValueForExpressionPath('[%d]' % i)
+          dic[iv_name] = self.frame.EvaluateExpression('rb_obj_ivar_get(%s, %s)' % (obj.GetValue(), iv_name.GetValue()))
+
+      return dic
 
   def enhance_method_missing(self):
     new_bp = self.target.BreakpointCreateByName("rb_method_missing")
