@@ -22,7 +22,7 @@ mode:
 parser = OptionParser(usage)
 
 parser.add_option(
-    "-n", "--node-type",
+    "-n", "--node-types",
     action="store",
     type="string",
     dest="node_types",
