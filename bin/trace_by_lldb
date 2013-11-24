@@ -15,7 +15,7 @@ usage: %prog mode ruby_bin ruby_target_file
 ruby_bin:          debug built ruby bin file path
 ruby_target_file:  target ruby source file path
 mode:
- * show_current_fname
+ * show_current_fname:            print 'current_file_name:line_num' each method called with 20 args
  * print_ruby_eval_tree:          print ruby_eval_tree at load_file and ruby_finalize_0
  * print_ruby_eval_tree_at_mark:  print ruby_eval_tree at mark (mark is any function with more than 10 arguments)
 """
@@ -82,7 +82,7 @@ if target:
 
     if mode == 'show_current_fname':
         bp = target.BreakpointCreateByName("rb_call", target.GetExecutable().GetFilename());
-        bp.SetCondition("argc > 1")
+        bp.SetCondition("argc == 20")
 
         process = target.LaunchSimple([ruby_target_file], None, os.getcwd())
         if process:
@@ -93,7 +93,7 @@ if target:
                     if thread:
                         frame = thread.GetFrameAtIndex(0)
                         h = helper.LLDBFrame(target, process, frame)
-                        print "current_fname = %s;" % h.current_fname()
+                        print "%s:%s" % (h.current_fname(), h.current_line())
                         process.Continue()
                 else:
                     break
