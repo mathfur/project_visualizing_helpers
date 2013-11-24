@@ -482,15 +482,16 @@ class LLDBFrame(object):
       results.extend(self.get_backtrace(prev))
     return results
 
-  def print_backtrace(self):
-    backtraces = self.get_backtrace()
-    for (fname, line_num, method_name) in backtraces:
-      if fname and line_num:
-        if method_name:
-          method_name_ = 'in `%s`' % method_name
-        else:
-          method_name_ = ''
-        print "%s:%s:%s" % (fname, line_num, method_name_)
+  def print_backtrace(self, header=''):
+      backtraces = self.get_backtrace()
+      for (fname, line_num, method_name) in backtraces:
+          if fname and line_num:
+              if method_name:
+                  method_name_ = 'in `%s`' % method_name
+              else:
+                  method_name_ = ''
+
+              print "%s%s:%s:%s" % (header, fname, line_num, method_name_)
 
   def get_func_name(self, origin_frame=None):
     top_trace = self.get_backtrace(origin_frame, True)

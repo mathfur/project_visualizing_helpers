@@ -16,6 +16,7 @@ ruby_bin:          debug built ruby bin file path
 ruby_target_file:  target ruby source file path
 mode:
  * show_current_fname:            print 'current_file_name:line_num' each method called with 20 args
+ * show_backtrace:                print backtrace each method called with 20 args
  * print_ruby_eval_tree:          print ruby_eval_tree at load_file and ruby_finalize_0
  * print_ruby_eval_tree_at_mark:  print ruby_eval_tree at mark (mark is any function with more than 10 arguments)
 """
@@ -59,7 +60,7 @@ if not os.path.exists(ruby_target_file):
     parser.print_help()
     exit()
 
-if not mode in ['show_current_fname', 'print_ruby_eval_tree', 'print_ruby_eval_tree_at_mark']:
+if not mode in ['show_current_fname', 'show_backtrace', 'print_ruby_eval_tree', 'print_ruby_eval_tree_at_mark']:
     parser.error("require mode, ruby_bin and target_ruby_file")
     parser.print_help()
     exit()
@@ -80,12 +81,13 @@ res = lldb.SBCommandReturnObject()
 if target:
     h = helper.LLDBFrame(target, None, None)
 
-    if mode == 'show_current_fname':
+    if mode == 'show_current_fname' or mode == 'show_backtrace':
         bp = target.BreakpointCreateByName("rb_call", target.GetExecutable().GetFilename());
         bp.SetCondition("argc == 20")
 
         process = target.LaunchSimple([ruby_target_file], None, os.getcwd())
         if process:
+            index = 0
             while True:
                 state = process.GetState()
                 if state == lldb.eStateStopped:
@@ -93,7 +95,11 @@ if target:
                     if thread:
                         frame = thread.GetFrameAtIndex(0)
                         h = helper.LLDBFrame(target, process, frame)
-                        print "%s:%s" % (h.current_fname(), h.current_line())
+                        if mode == 'show_current_fname':
+                            print "%d,%s:%s" % (index, h.current_fname(), h.current_line())
+                        elif mode == 'show_backtrace':
+                            h.print_backtrace('%s,' % str(index))
+                        index += 1
                         process.Continue()
                 else:
                     break
