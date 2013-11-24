@@ -29,6 +29,14 @@ parser.add_option(
     help="specify output node type: NODE_*. multiple node type can be specified by string separated by ','"
 )
 
+parser.add_option(
+    "-d", "--depth",
+    action="store",
+    type="int",
+    dest="depth",
+    help="node tree depth (>0)"
+)
+
 (options, args) = parser.parse_args()
 
 if not args or len(args) != 3:
@@ -39,7 +47,7 @@ if not args or len(args) != 3:
 mode = args[0]
 ruby_bin = args[1]
 ruby_target_file = args[2]
-node_types = options.node_types
+depth = options.depth
 
 if not os.path.exists(ruby_bin):
     parser.error("ruby_bin file `%s` is not exist" % ruby_bin)
@@ -56,13 +64,10 @@ if not mode in ['show_current_fname', 'print_ruby_eval_tree', 'print_ruby_eval_t
     parser.print_help()
     exit()
 
-if node_types:
-    node_types = node_types.split(',')
-    for n in node_types:
-        if n.find('NODE_') != 0:
-            parser.error("`%s` is wrong node type. Each node type has to be started by NODE_." % n)
-            parser.print_help()
-            exit()
+if depth and depth <= 0:
+    parser.error("`%d` has to be positive integer." % depth)
+    parser.print_help()
+    exit()
 
 #-----------------------------------------------
 
@@ -113,7 +118,7 @@ if target:
                         h = helper.LLDBFrame(target, process, frame)
                         ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
 
-                        print(h.node_to_json(ruby_eval_tree, node_types))
+                        print(h.node_to_json(ruby_eval_tree, node_types, depth))
                         print(", ")
                         process.Continue()
                 else:

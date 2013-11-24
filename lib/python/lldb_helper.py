@@ -114,8 +114,8 @@ class LLDBFrame(object):
     ('NODE_SVALUE', [['u1', 'node']]),
     ('NODE_BLOCK_ARG', [['u3', 'cnt']]),
     ('NODE_BLOCK_PASS', []),
-    ('NODE_DEFN', [['u3', 'node'], ['u3', 'cnt'], ['u2', 'id']]),
-    ('NODE_DEFS', [['u1', 'node'], ['u3', 'node'], ['u1', 'id']]),
+    ('NODE_DEFN', [['u3', 'node'], ['u3', 'cnt'], ['u2', 'id']]),  # def foo(...)
+    ('NODE_DEFS', [['u1', 'node'], ['u3', 'node'], ['u1', 'id']]), # def obj.foo(...)
     ('NODE_ALIAS', []),
     ('NODE_VALIAS', []),
     ('NODE_UNDEF', []),
@@ -208,17 +208,21 @@ class LLDBFrame(object):
     else:
       return None
 
-  def child_node_value(self, node, node_type, key, category, filter_types):
+  def child_node_value(self, node, node_type, key, category, filter_types, depth):
+      if not filter_types and depth > 0:
+          next_depth = depth - 1
+      else:
+          next_depth = depth
       #try:
       obj = self.get_member(self.get_member(node, key), category)
       if filter_types:
           if category == 'node':
-              return self.inspect_node(obj, filter_types)
+              return self.inspect_node(obj, filter_types, next_depth)
           else:
               return None
       else:
           if category == 'value': r = self.inspect_value(obj)
-          elif category == 'node': r = self.inspect_node(obj)
+          elif category == 'node': r = self.inspect_node(obj, None, next_depth)
           elif category == 'id': r = self.id2name(obj)
           elif category == 'argc': r = str(obj)
           elif category == 'entry': r = "(entry)"
@@ -244,7 +248,9 @@ class LLDBFrame(object):
       fname = self.node_fname(node)
       return {'nd_file': fname, 'line_number': line_number, 'u1': {},  'u2': {}, 'u3': {}}
 
-  def inspect_node(self, node, filter_types=None):
+  def inspect_node(self, node, filter_types=None, depth=None):
+      if depth == 0:
+          return None
       node_type = self.get_node_type(node)
       result = self.inspect_node_base_value(node)
       result['type'] = node_type
@@ -256,7 +262,7 @@ class LLDBFrame(object):
       for key, category in self.find(node_type, self.available_children):
           if not transit:
               filter_types = None
-          r = self.child_node_value(node, node_type, key, category, filter_types)
+          r = self.child_node_value(node, node_type, key, category, filter_types, depth)
           if transit:
               if r and type(r) == list:
                   result.extend(r)
@@ -266,8 +272,8 @@ class LLDBFrame(object):
               result[key][category] = r
       return result
 
-  def node_to_json(self, node, filter_types=None):
-      return json.dumps(self.inspect_node(node, filter_types))
+  def node_to_json(self, node, filter_types=None, depth=None):
+      return json.dumps(self.inspect_node(node, filter_types, depth))
 
   def to_xml(self, dic):
     def wrap_tag(name, dic):
@@ -292,8 +298,8 @@ class LLDBFrame(object):
     else:
       return str(dic)
 
-  def get_node_by_xml(self, node):
-    dic = self.inspect_node(node)
+  def get_node_by_xml(self, node, filter_types=None, depth=None):
+    dic = self.inspect_node(node, filter_types=None, depth=None)
     return self.to_xml({'node': dic})
 
   # ===============================================

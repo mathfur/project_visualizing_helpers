@@ -474,6 +474,44 @@ APPEND_STATEMENT
       results.compact.should be_all{|r| r['type'] == 'NODE_LIT'}
       results.compact.map{|r| r['u1']['value'] }.should == ['10', '3', ':foo']
     end
+
+    specify do
+      results = execute_with_break(<<RB_SOURCE, {'ruby_run' => <<BREAK_STATMENT}, <<APPEND_STATEMENT)
+def foo
+  print 10
+  if true
+    print 20
+    if true
+      print 30
+      if true
+        print 40
+      end
+    end
+  end
+end
+
+def bar
+  print
+end
+RB_SOURCE
+BREAK_STATMENT
+ruby_eval_tree = frame.EvaluateExpression('(NODE *) ruby_eval_tree')
+print h.node_to_json(ruby_eval_tree, 'NODE_DEFN', 1)
+APPEND_STATEMENT
+
+      json_source = results.join("\n")
+      results = JSON.parse(json_source)
+
+      results.size.should == 2
+
+      results[0]['type'].should == 'NODE_DEFN'
+      results[0]['u2']['id'].should == 'foo'
+      results[0]['nd_file'].should == TMP_RUBY_SOURCE
+
+      results[1]['type'].should == 'NODE_DEFN'
+      results[1]['u2']['id'].should == 'bar'
+      results[1]['nd_file'].should == TMP_RUBY_SOURCE
+    end
   end
 
   describe '#get_node_by_xml' do
