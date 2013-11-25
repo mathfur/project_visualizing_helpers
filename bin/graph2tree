@@ -1,8 +1,10 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+$: << (File.dirname(__FILE__) + "/..")
+
 require 'getoptlong'
-require './lib/project_visualizing_helpers'
+require 'lib/project_visualizing_helpers'
 
 usage = <<EOS
 Usage: graph2tree [file]
