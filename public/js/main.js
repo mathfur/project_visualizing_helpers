@@ -1,33 +1,18 @@
-var custom_fields = {
+var fields = {
     index: {
                type: 'string',
-               handler: function(d){
-                   return d.index;
-               }
            },
     time: {
               type: 'time',
-              handler: function(d){
-                  return d.time;
-              }
           },
     user: {
               type: 'string',
-              handler: function(d){
-                  return d.user;
-              }
           },
     byte: {
               type: 'number',
-              handler: function(d){
-                  return d.byte;
-              }
           },
-    query: {
+    req: {
               type: 'string',
-              handler: function(d){
-                  return d.query;
-              }
            }
 }
 
@@ -38,26 +23,30 @@ var from_string = {
 }
 
 var field_handler_s = function(k, d){
-    var type = custom_fields[k].type;
-    var handler = custom_fields[k].handler;
+    var type = fields[k].type;
+
+    return from_string[type](d[k]);
+}
+
+var other_field_handler = function(k, d){
+    var type = other_fields[k].type;
+    var handler = other_fields[k].handler;
 
     return from_string[type](handler(d));
 }
 
-var x_coordinate = null;
-var y_coordinate = null;
+var other_fields = {};
 
-var custom_field_values = function(data, k){
+var value_area_h = function(data, k){
     return _.uniq(_.map(data, _.partial(field_handler_s, k)));
 }
 
-var x_values = function(data){
-  return custom_field_values(data, x_coordinate);
-}
+var value_areas = {}
 
-var y_values = function(data){
-  return custom_field_values(data, y_coordinate);
-}
+var x_coordinate = null;
+var y_coordinate = null;
+var x_prefix = '#';
+var y_prefix = '#';
 
 var get_scale = function(values, type, range){
     var values = values.map(from_string[type]);
@@ -85,7 +74,8 @@ var get_size = {
               return 10;
           },
     string: function(values, range){
-                return (range[1] - range[0]) / values.length;
+                var r = ((range[1] - range[0]) / values.length);
+                return _.max([r - 2, 1]);
             }
 }
 
@@ -109,20 +99,19 @@ var data_table = d3.frt.dataTable()
                    .main_render(function(svg, container, data_, x, y, chartW, chartH){
                         var font_size = 11;
 
-
                         render(svg, data_, 'rect', 'cell', function(){
-                            this.attr("width",  get_size[custom_fields[x_coordinate].type](data_, [0, chartW]))
-                                .attr("height", get_size[custom_fields[y_coordinate].type](data_, [0, chartH]))
+                            this.attr("width",  get_size[fields[x_coordinate].type](value_areas[x_coordinate], [0, chartW]))
+                                .attr("height", get_size[fields[y_coordinate].type](value_areas[y_coordinate], [0, chartH]))
                                 .attr("fill", "#a00")
-                                .attr('x', function(d){ return x(field_handler_s(x_coordinate, d)) })
-                                .attr('y', function(d){ return y(field_handler_s(y_coordinate, d)) });
+                                .attr('x', function(d){ return x(d[x_coordinate]) })
+                                .attr('y', function(d){ return y(d[y_coordinate]) });
                         });
 
                         render(svg, data_, 'text', 'x-label', function(){
                             this.attr("text-anchor", "middle")
-                                .attr('x', function(d){ return x(field_handler_s(x_coordinate, d)) })
+                                .attr('x', function(d){ return x(d[x_coordinate]) })
                                 .attr('y', (-1)*font_size)
-                                .text(function(d){ return field_handler_s(x_coordinate, d) })
+                                .text(function(d){ return d[x_coordinate] })
                                 .on('click', function(){
                                     var text = d3.select(this).text();
 
@@ -139,8 +128,8 @@ var data_table = d3.frt.dataTable()
                         render(svg, data_, 'text', 'y-label', function(){
                             this.attr("text-anchor", "end")
                                 .attr('x', 0)
-                                .attr('y', function(d){ return y(field_handler_s(y_coordinate, d)) })
-                                .text(function(d){ return field_handler_s(y_coordinate, d) })
+                                .attr('y', function(d){ return y(d[y_coordinate]) })
+                                .text(function(d){ return d[y_coordinate] })
                                 .on('click', function(){
                                     var text = d3.select(this).text();
 
@@ -155,10 +144,10 @@ var data_table = d3.frt.dataTable()
                         });
                    })
                    .xScale(function(data_, chartW, chartH){
-                       return get_scale(x_values(data_), custom_fields[x_coordinate].type, [0, chartW]);
+                       return get_scale(value_areas[x_coordinate], fields[x_coordinate].type, [0, chartW]);
                    })
                    .yScale(function(data_, chartW, chartH){
-                       return get_scale(y_values(data_), custom_fields[y_coordinate].type, [0, chartH]);
+                       return get_scale(value_areas[y_coordinate], fields[y_coordinate].type, [0, chartH]);
                    });
 
 var x_pop = function(){
@@ -174,21 +163,14 @@ var y_pop = function(){
 var update = function(){
     d3.csv("/access_logs", function(error, logs){
         d3.csv("/users", function(error, users){
-            var filtered_logs = logs;
-
-            var filters = $('#filters').val();
-
-            if(filters != ''){
-                _.each(filters.split('&'), function(pair){ // pair == 'foo=bar'
-                    var k = pair.split('=')[0];
-                    var v = pair.split('=')[1];
-
-                    filtered_logs = _.filter(filtered_logs, function(d){ return field_handler_s(k, d) == v });
-                });
-            }
-
             x_coordinate = $('#x-coordinate').val().split("\n")[0];
             y_coordinate = $('#y-coordinate').val().split("\n")[0];
+
+            x_prefix = x_coordinate.slice(0, 1);
+            y_prefix = y_coordinate.slice(0, 1);
+
+            x_coordinate = x_coordinate.slice(1);
+            y_coordinate = y_coordinate.slice(1);
 
             $('#custom-fields .custom-field').each(function(){
                 var k = $(this).find('.key').val();
@@ -199,13 +181,62 @@ var update = function(){
                     type = 'string';
                 }
 
-                custom_fields[k] = {
+                other_fields[k] = {
                     type: type,
                     handler: function(d){
                         return eval(v);
                     }
                 }
+
+                fields[k] = {
+                    type: type
+                }
             });
+
+            if(!_.has(fields, x_coordinate) && !_.has(other_fields, x_coordinate)){
+                alert(x_coordinate + 'is wrong key. [x]');
+                return;
+            }
+
+            if(!_.has(fields, y_coordinate) && !_.has(other_fields, y_coordinate)){
+                alert(y_coordinate + 'is wrong key. [y]');
+                return;
+            }
+
+            //== calculate custom field values
+
+            for(var i=0;i < logs.length;i++){
+                _.each(_.keys(other_fields), function(k){
+                    logs[i][k] = other_field_handler(k, logs[i])
+                });
+            }
+
+            //== convert from string to each type value
+
+            for(var i=0;i < logs.length;i++){
+                _.each(_.keys(logs[i]), function(k){
+                    logs[i][k] = field_handler_s(k, logs[i]);
+                });
+            }
+
+            var filters = $('#filters').val();
+
+            var filtered_logs = logs;
+
+            if(filters != ''){
+                _.each(filters.split('&'), function(pair){ // pair == 'foo=bar'
+                    var k = pair.split('=')[0];
+                    var v = pair.split('=')[1];
+
+                    filtered_logs = _.filter(filtered_logs, function(d){ return d[k] == v });
+                });
+            }
+
+            //== calculate value areas
+
+            _.each(_.keys(logs[0]), function(k){
+                value_areas[k] = value_area_h(filtered_logs, k);
+            })
 
             d3.select('div#base')
               .datum(filtered_logs)

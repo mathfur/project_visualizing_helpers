@@ -20,7 +20,7 @@ module ProjectVisualizingHelpers
     end
 
     get '/access_logs' do
-      "index,time,user,byte,query\n" +
+      "index,time,user,byte,req\n" +
         File.read("#{BASE_DIR}/tmp/access_logs.log")
     end
 
