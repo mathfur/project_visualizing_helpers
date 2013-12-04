@@ -16,6 +16,7 @@ Gemfile.lock
 tmp
 tmp/testdata
 log/
+*.db
 
 # YARD artifacts
 .yardoc

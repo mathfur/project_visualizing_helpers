@@ -1,0 +1,3 @@
+main:
+  adapter: sqlite3
+  database: main.db

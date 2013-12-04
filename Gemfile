@@ -18,4 +18,10 @@ gem 'coffee-script'
 
 group :development do
   gem "jeweler",  "~> 1.6.4"
+  gem "shotgun"
+  gem "tux"
 end
+
+gem "sqlite3"
+gem "activerecord"
+gem "sinatra-activerecord"
