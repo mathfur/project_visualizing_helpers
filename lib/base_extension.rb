@@ -46,7 +46,7 @@ class String
 end
 
 class Array
-  def sum
+  def sum_
     case self.length
     when 0
       nil
@@ -84,7 +84,7 @@ class Module
       matrix = self.fr_modules.map{|child| child.child_classes(arrowed_depth-1) }
 
       if matrix.present?
-        classes, modules = matrix.transpose.map(&:sum)
+        classes, modules = matrix.transpose.map(&:sum_)
       else
         classes = []
         modules = []

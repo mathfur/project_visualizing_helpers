@@ -20,6 +20,7 @@ group :development do
   gem "jeweler",  "~> 1.6.4"
   gem "shotgun"
   gem "tux"
+  gem "pry"
 end
 
 gem "sqlite3"

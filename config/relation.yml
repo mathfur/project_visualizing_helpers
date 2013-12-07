@@ -1,0 +1,13 @@
+-
+  name: 'user'
+  from: 'AccessLog'
+  to: 'User'
+  foreign_key: 'user'
+  primary_key: 'name'
+
+-
+  name: 'access_logs'
+  from: 'User'
+  to: 'AccessLog'
+  foreign_key: 'user'
+  primary_key: 'name'

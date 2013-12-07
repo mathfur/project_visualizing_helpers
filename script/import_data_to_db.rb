@@ -23,7 +23,6 @@ opts = GetoptLong.new(
 
 headers = nil
 
-
 begin
   opts.each do |opt, arg|
     case opt
@@ -57,6 +56,8 @@ while line = gets
     headers = line
   end
 end
+
+ActiveRecord::Base.connection.execute "DELETE FROM #{table_name}"
 
 lines.each do |line|
   header_str = headers.map{|h| '`' + h + '`' }.join(', ')

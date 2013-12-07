@@ -11,26 +11,50 @@ module ProjectVisualizingHelpers
       haml :index
     end
 
-    get '/schedules' do
-      [
-        "complete,start,end,title",
-        "x,9/28 10:00,9/28 13:00,準備",
-        "x,9/28 13:00,9/28 14:00,タスクA"
-      ].join("\n")
+    get '/field_types' do
+      flatten_field_types = {}
+      field_type_each_table = YAML.load_file('config/models.yml')
+
+      field_type_each_table.each do |name, defs|
+        defs.each do |k, v|
+          flatten_field_types[k] = v
+        end
+      end
+
+      {id: 'number', count: 'number'}.merge(flatten_field_types).to_json
     end
 
     get '/access_logs' do
-      "index,time,user,byte,req\n" +
-        File.read("#{BASE_DIR}/tmp/access_logs.log")
-    end
+      columns = params.delete('group')
 
-    get '/users' do
-      "index,name,age,sex,prefecture\n" +
-        File.read("#{BASE_DIR}/tmp/users.log")
+      filters = params.inject({}) do |h, (k, v)|
+                  table = belong_table(k)
+                  h[table] ||= {}
+                  h[table][k] = v
+                  h
+                end
+
+      group_columns = columns.map{|k| "#{belong_table(k)}.#{k}" }
+
+      (columns + ['count']).join(',') + "\n" +
+        AccessLog.joins(:user).where(filters).group(group_columns).count.map{|log, c| "#{log.join(',')},#{c}" }.join("\n")
     end
 
     @@mutex = Mutex.new
     helpers do
+      def belong_table(col)
+        access_log_columns = AccessLog.column_names
+        user_columns = User.column_names
+
+        if access_log_columns.include?(col)
+          "access_logs"
+        elsif user_columns.include?(col)
+          "users"
+        else
+          raise "`#{col}` is wrong column name"
+        end
+      end
+
       def execute_script(cmd)
         result = nil
 

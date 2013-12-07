@@ -1,0 +1,11 @@
+access_logs:
+    time: 'time'
+    user: 'string'
+    byte: 'number'
+    req: 'string'
+
+users:
+    name: 'string'
+    age: 'number'
+    sex: 'string'
+    prefecture: 'string'

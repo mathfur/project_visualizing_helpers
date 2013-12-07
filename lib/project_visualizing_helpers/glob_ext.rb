@@ -46,7 +46,7 @@ module ProjectVisualizingHelpers
       @dir_info_cache[path] ||
       @dir_info_cache[path] = if File.directory?(path)
                                 matrix = Dir["#{path}/*"].map{|child| dir_info(child) }
-                                matrix.present? ? matrix.transpose.map(&:sum) : [0, 0, 0, 0]
+                                matrix.present? ? matrix.transpose.map(&:sum_) : [0, 0, 0, 0]
                               elsif !is_text?(path) and @only_text
                                 [0, 0, 0, 0]
                               else

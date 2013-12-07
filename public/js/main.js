@@ -1,52 +1,16 @@
-var fields = {
-    index: {
-               type: 'string',
-           },
-    time: {
-              type: 'time',
-          },
-    user: {
-              type: 'string',
-          },
-    byte: {
-              type: 'number',
-          },
-    req: {
-              type: 'string',
-           }
-}
-
 var from_string = {
     time: function(str){ return (new Date(Date.parse(str))); },
     number: function(str){ return str*1 },
     string: function(str){ return str }
 }
 
-var field_handler_s = function(k, d){
-    var type = fields[k].type;
-
-    return from_string[type](d[k]);
-}
-
-var other_field_handler = function(k, d){
-    var type = other_fields[k].type;
-    var handler = other_fields[k].handler;
-
-    return from_string[type](handler(d));
-}
-
-var other_fields = {};
-
-var value_area_h = function(data, k){
-    return _.uniq(_.map(data, _.partial(field_handler_s, k)));
-}
-
 var value_areas = {}
 
 var x_coordinate = null;
 var y_coordinate = null;
-var x_prefix = '#';
-var y_prefix = '#';
+
+var x_type = null;
+var y_type = null;
 
 var get_scale = function(values, type, range){
     var values = values.map(from_string[type]);
@@ -91,7 +55,9 @@ var render = function(svg, data, tag, klass, settings){
          .remove();
 }
 
-var color = d3.scale.category20();
+var cell_color = d3.scale.linear()
+                   .range(["hsl(0, 80%, 20%)", "hsl(0, 80%, 80%)"])
+                   .interpolate(d3.interpolateHsl);
 
 var data_table = d3.frt.dataTable()
                    .width(900)
@@ -99,10 +65,12 @@ var data_table = d3.frt.dataTable()
                    .main_render(function(svg, container, data_, x, y, chartW, chartH){
                         var font_size = 11;
 
+                        cell_color = cell_color.domain(d3.extent(_.pluck(data_, 'count')));
+
                         render(svg, data_, 'rect', 'cell', function(){
-                            this.attr("width",  get_size[fields[x_coordinate].type](value_areas[x_coordinate], [0, chartW]))
-                                .attr("height", get_size[fields[y_coordinate].type](value_areas[y_coordinate], [0, chartH]))
-                                .attr("fill", "#a00")
+                            this.attr("width",  get_size[x_type](x_values, [0, chartW]))
+                                .attr("height", get_size[y_type](y_values, [0, chartH]))
+                                .attr("fill", function(d){ return cell_color(d.count) })
                                 .attr('x', function(d){ return x(d[x_coordinate]) })
                                 .attr('y', function(d){ return y(d[y_coordinate]) });
                         });
@@ -120,8 +88,8 @@ var data_table = d3.frt.dataTable()
 
                                     $('#filters').val(filters + separator + x_coordinate + '=' + text);
 
-                                    update();
                                     x_pop();
+                                    update();
                                 });
                         });
 
@@ -138,16 +106,16 @@ var data_table = d3.frt.dataTable()
 
                                     $('#filters').val(filters + separator + y_coordinate + '=' + text);
 
-                                    update();
                                     y_pop();
+                                    update();
                                 });
                         });
                    })
                    .xScale(function(data_, chartW, chartH){
-                       return get_scale(value_areas[x_coordinate], fields[x_coordinate].type, [0, chartW]);
+                       return get_scale(x_values, x_type, [0, chartW]);
                    })
                    .yScale(function(data_, chartW, chartH){
-                       return get_scale(value_areas[y_coordinate], fields[y_coordinate].type, [0, chartH]);
+                       return get_scale(y_values, y_type, [0, chartH]);
                    });
 
 var x_pop = function(){
@@ -161,85 +129,47 @@ var y_pop = function(){
 }
 
 var update = function(){
-    d3.csv("/access_logs", function(error, logs){
-        d3.csv("/users", function(error, users){
-            x_coordinate = $('#x-coordinate').val().split("\n")[0];
-            y_coordinate = $('#y-coordinate').val().split("\n")[0];
+    var filters = $('#filters').val();
 
-            x_prefix = x_coordinate.slice(0, 1);
-            y_prefix = y_coordinate.slice(0, 1);
+    x_coordinate = $('#x-coordinate').val().split("\n")[0];
+    y_coordinate = $('#y-coordinate').val().split("\n")[0];
 
-            x_coordinate = x_coordinate.slice(1);
-            y_coordinate = y_coordinate.slice(1);
+    filters = filters + "&group[]=" + x_coordinate + "&group[]=" + y_coordinate
 
-            $('#custom-fields .custom-field').each(function(){
-                var k = $(this).find('.key').val();
-                var v = $(this).find('.value').val();
-                var type = $(this).find('.type').val();
+    d3.json("/field_types", function(error, field_types){
+        x_type = field_types[x_coordinate];
+        y_type = field_types[y_coordinate];
 
-                if(type == ''){
-                    type = 'string';
+        d3.csv("/access_logs?" + filters, function(error, logs){
+            if(logs[0]){
+                var keys = _.keys(logs[0]);
+
+                var handlers = {};
+
+                _.each(keys, function(k){
+                    handlers[k] = from_string[field_types[k]];
+                });
+
+                //== convert from string to each type value
+
+                for(var i=0;i < logs.length;i++){
+                    _.each(keys, function(k){
+                        logs[i][k] = handlers[k](logs[i][k]);
+                    });
                 }
 
-                other_fields[k] = {
-                    type: type,
-                    handler: function(d){
-                        return eval(v);
-                    }
-                }
+                //== calculate value areas
 
-                fields[k] = {
-                    type: type
-                }
-            });
+                _.each(keys, function(k){
+                    value_areas[k] = _.uniq(_.map(logs, function(log){ return handlers[k](log[k]); }));
+                })
 
-            if(!_.has(fields, x_coordinate) && !_.has(other_fields, x_coordinate)){
-                alert(x_coordinate + 'is wrong key. [x]');
-                return;
+                x_values = value_areas[x_coordinate];
+                y_values = value_areas[y_coordinate];
             }
-
-            if(!_.has(fields, y_coordinate) && !_.has(other_fields, y_coordinate)){
-                alert(y_coordinate + 'is wrong key. [y]');
-                return;
-            }
-
-            //== calculate custom field values
-
-            for(var i=0;i < logs.length;i++){
-                _.each(_.keys(other_fields), function(k){
-                    logs[i][k] = other_field_handler(k, logs[i])
-                });
-            }
-
-            //== convert from string to each type value
-
-            for(var i=0;i < logs.length;i++){
-                _.each(_.keys(logs[i]), function(k){
-                    logs[i][k] = field_handler_s(k, logs[i]);
-                });
-            }
-
-            var filters = $('#filters').val();
-
-            var filtered_logs = logs;
-
-            if(filters != ''){
-                _.each(filters.split('&'), function(pair){ // pair == 'foo=bar'
-                    var k = pair.split('=')[0];
-                    var v = pair.split('=')[1];
-
-                    filtered_logs = _.filter(filtered_logs, function(d){ return d[k] == v });
-                });
-            }
-
-            //== calculate value areas
-
-            _.each(_.keys(logs[0]), function(k){
-                value_areas[k] = value_area_h(filtered_logs, k);
-            })
 
             d3.select('div#base')
-              .datum(filtered_logs)
+              .datum(logs)
               .call(data_table);
         });
     });

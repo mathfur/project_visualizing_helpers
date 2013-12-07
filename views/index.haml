@@ -27,19 +27,9 @@
         Filters:
         %input#filters.form-control{:rows => 3, :type => 'text', :value => ''}
         X-Coordinate:
-        %textarea#x-coordinate.form-control{:rows => 3}= "#sex\n#user\n#byte\n"
+        %textarea#x-coordinate.form-control{:rows => 3}= "sex\nuser\nbyte\n"
         Y-Coordinate:
-        %textarea#y-coordinate.form-control{:rows => 3}= "#req\n#index\n#time\n"
-        %div#custom-fields
-          Custom Fields:
-          %button#add-field AddField
-          %div.custom-field
-            %button.delete-field x
-            %input.key{:type => 'text', :value => 'sex'}
-            %input.type{:type => 'text', :value => 'string'}
-            %input.value{:type => 'text', :value => '_.filter(users, function(u){ return u.name == d.user })[0].sex'}
-            // %input.key{:type => 'text', :value => 'user'}
-            // %input.value{:type => 'text', :value => 'd.user'}
+        %textarea#y-coordinate.form-control{:rows => 3}= "req\nid\ntime\n"
         %div
           %button#update2 Update2
 

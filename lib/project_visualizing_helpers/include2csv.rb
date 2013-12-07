@@ -14,7 +14,7 @@ module ProjectVisualizingHelpers
       if @base
         get_parent_child_pairs(@base)
       else
-        all_classes.map{|klass| get_parent_child_pairs(klass) }.sum || []
+        all_classes.map{|klass| get_parent_child_pairs(klass) }.sum_ || []
       end
     end
 
