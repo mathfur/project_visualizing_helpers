@@ -45,7 +45,7 @@ var get_size = {
 
 var render = function(svg, data, tag, klass, settings){
     var chart = svg.select(".chart-group")
-                   .selectAll("." + klass)
+                   .selectAll(tag + "." + klass)
                    .data(data);
     chart.enter().append(tag).attr('class', klass).call(settings);
     chart.call(settings);

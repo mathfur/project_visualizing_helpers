@@ -1,0 +1,29 @@
+!!!
+%html
+  %head
+    %title title
+    %meta{:'http-equiv' => "Content-Type", :content => "text/html;charset=utf-8"}
+    %link{:href => "/css/reset.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/genericons.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/bootstrap.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/bootstrap-responsive.css", :rel => "stylesheet", :type => "text/css"}
+    %link{:href => "/css/tree.css", :rel => "stylesheet", :type => "text/css"}
+    %script{:src => "/js/d3.js"}
+    %script{:src => '/js/jquery-2.0.3.js'}
+    %script{:src => '/js/underscore.js'}
+    %script{:src => '/js/helper.js'}
+    %script{:src => '/js/bootstrap.js'}
+    %script{:src => '/js/main2.js'}
+  %body
+    %div.navbar.navbar-fixed-top
+      %div.navbar-inner
+        %div.container
+          %ul.nav.pull-left
+            %a.brand TreeView
+
+    %div#base
+      %div
+        %button#update Update
+      %div#label-base
+
+%script{:src => "js/tree.js"}

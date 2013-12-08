@@ -40,6 +40,23 @@ module ProjectVisualizingHelpers
         AccessLog.joins(:user).where(filters).group(group_columns).count.map{|log, c| "#{log.join(',')},#{c}" }.join("\n")
     end
 
+    get '/tree' do
+      haml :tree
+    end
+
+    get '/tree_data' do
+      {
+        name: "point#{rand(10)}",
+        klass: "Point",
+        instance_variables: [
+          {name: "x", value: 10},
+          {name: "y", value: 20},
+          {name: "append_object", klass: 'Append', instance_variables: [
+            {name: "foo", value: 'aaa'}]}
+        ]
+      }.to_json
+    end
+
     @@mutex = Mutex.new
     helpers do
       def belong_table(col)
