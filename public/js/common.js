@@ -92,6 +92,10 @@ d3.pvh.dataTable = function module() {
 
             container.append("g").classed(wrapper_class, true);
 
+            if(data_.length == 0){
+              console.log("blank data");
+            }
+
             main_render.call(base, svg, container, data_, x, y, chartW(), chartH());
         }); // _selection.each END
     }

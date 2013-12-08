@@ -1,0 +1,8 @@
+div.cell_data {
+  position: absolute;
+  z-index: 10;
+  visibility: visible;
+  border: none;
+  background-color: #aaa;
+  border-radius: 3px;
+}

@@ -68,6 +68,21 @@ module ProjectVisualizingHelpers
 
     #----------------------------------------------------
 
+    get '/progress' do
+      @function_label = 'Progress'
+      @function_name = 'progress'
+
+      dir = "#{ENV['HOME']}/.visualize/progress"
+      Dir.mkdir(dir) unless Dir.exist?(dir)
+
+      path = "#{dir}/#{params[:name]}"
+      @data = CSV.read(path, :headers => true).map{|row| Hash[*row.headers.zip(row.fields).flatten] }
+
+      haml :progress
+    end
+
+    #----------------------------------------------------
+
     @@mutex = Mutex.new
     helpers do
       def belong_table(col)
