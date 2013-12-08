@@ -22,3 +22,9 @@ f.close
 require "include2csv"
 puts ProjectVisualizingHelpers::Include2CSV.new.to_csv
 ```
+
+drill_down Usage
+----------------
+1. Write config/relation.yml
+2. Write config/models.yml
+3. Create table to main.db

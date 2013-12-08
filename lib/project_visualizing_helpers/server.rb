@@ -7,8 +7,13 @@ module ProjectVisualizingHelpers
     logger = File.new("#{BASE_DIR}/log/app.log", 'a+')
     use Rack::CommonLogger, logger
 
-    get '/' do
-      haml :index
+    first_model = AccessLog
+    #----------------------------------------------------
+
+    get '/drill_down' do
+      @function_label = 'DrillDown'
+      @function_name = 'drill_down'
+      haml :drill_down
     end
 
     get '/field_types' do
@@ -24,7 +29,7 @@ module ProjectVisualizingHelpers
       {id: 'number', count: 'number'}.merge(flatten_field_types).to_json
     end
 
-    get '/access_logs' do
+    get '/drill_down_data' do
       columns = params.delete('group')
 
       filters = params.inject({}) do |h, (k, v)|
@@ -37,10 +42,14 @@ module ProjectVisualizingHelpers
       group_columns = columns.map{|k| "#{belong_table(k)}.#{k}" }
 
       (columns + ['count']).join(',') + "\n" +
-        AccessLog.joins(:user).where(filters).group(group_columns).count.map{|log, c| "#{log.join(',')},#{c}" }.join("\n")
+        first_model.joins(:user).where(filters).group(group_columns).count.map{|log, c| "#{log.join(',')},#{c}" }.join("\n")
     end
 
+    #----------------------------------------------------
+
     get '/tree' do
+      @function_label = 'TreeView'
+      @function_name = 'tree'
       haml :tree
     end
 
@@ -57,19 +66,18 @@ module ProjectVisualizingHelpers
       }.to_json
     end
 
+    #----------------------------------------------------
+
     @@mutex = Mutex.new
     helpers do
       def belong_table(col)
-        access_log_columns = AccessLog.column_names
-        user_columns = User.column_names
-
-        if access_log_columns.include?(col)
-          "access_logs"
-        elsif user_columns.include?(col)
-          "users"
-        else
-          raise "`#{col}` is wrong column name"
+        YAML.load_file('config/models.yml').find do |table_name,cols|
+          if cols.keys.include?(col)
+            return table_name
+          end
         end
+
+        raise "`#{col}` is wrong column name"
       end
 
       def execute_script(cmd)

@@ -1,6 +1,8 @@
-d3.frt = {};
+d3.pvh = {};
 
-d3.frt.dataTable = function module() {
+d3.pvh.dataTable = function module() {
+    var base = this;
+
     var start_time = null;
     var end_time   = null;
 
@@ -10,6 +12,8 @@ d3.frt.dataTable = function module() {
 
     var eps = 10;
 
+    var wrapper_class = "chart_group"
+
     function chartW(){
         return width - margin.left - margin.right;
     }
@@ -17,6 +21,19 @@ d3.frt.dataTable = function module() {
     function chartH(){
         return height - margin.top - margin.bottom;
     }
+
+    this.render = function(svg, data, tag, klass, settings){
+        var chart = svg.select("." + wrapper_class)
+                       .selectAll(tag + "." + klass)
+                       .data(data);
+        chart.enter().append(tag).attr('class', klass).call(settings);
+        chart.call(settings);
+        chart.exit()
+             .transition()
+             .style({opacity: 0})
+             .remove();
+    }
+
 
     var main_render = function(){};
     var xScale = function(){};
@@ -73,9 +90,9 @@ d3.frt.dataTable = function module() {
 
             //=================================================
 
-            container.append("g").classed("chart-group", true);
+            container.append("g").classed(wrapper_class, true);
 
-            main_render(svg, container, data_, x, y, chartW(), chartH());
+            main_render.call(base, svg, container, data_, x, y, chartW(), chartH());
         }); // _selection.each END
     }
 
